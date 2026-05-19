@@ -181,7 +181,7 @@ The app has three roles selected in **Settings (⚙)**:
 - **Syncs to and from the cloud** (Google Sheets)
 - Can push data to cloud after each game
 - Can clear tournament or leaderboard data from the cloud
-- Requires the admin password: `river2024`
+- Requires the admin password: `RiverAdmin2026`
 
 > **To change the admin password:** Edit the `ADMIN_PASSWORD` constant at the top of the `<script>` section in `index.html`.
 

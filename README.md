@@ -379,7 +379,7 @@ cd Up-and-Down-the-River-Tournament-Claude-One-Shot-
 Edit `index.html` to change:
 ```javascript
 // Line ~3 of the <script> section:
-const ADMIN_PASSWORD = 'river2024';      // ← change your admin password
+const ADMIN_PASSWORD = 'RiverAdmin2026';      // ← change your admin password
 const DEFAULT_PLAYERS = 'Mom, Georgia, Lucy, Jack, Dad';  // ← change default players
 ```
 

@@ -6,9 +6,9 @@
 
 **A Progressive Web App for tracking card game tournaments**
 
-[![Live App](https://img.shields.io/badge/▶_Live_App-Play_Now-1a6b3c?style=for-the-badge)](https://jamesrwatt.github.io/Up-and-Down-the-River-Tournament/)
-[![PWA Ready](https://img.shields.io/badge/PWA-Ready-c9a84c?style=for-the-badge&logo=pwa)](https://jamesrwatt.github.io/Up-and-Down-the-River-Tournament/)
-[![No Install](https://img.shields.io/badge/No_Install-Required-3a7bd5?style=for-the-badge)](https://jamesrwatt.github.io/Up-and-Down-the-River-Tournament/)
+[![Live App](https://img.shields.io/badge/▶_Live_App-Play_Now-1a6b3c?style=for-the-badge)](https://jamesrwatt.github.io/Up-and-Down-the-River-Tournament-Claude-One-Shot-/)
+[![PWA Ready](https://img.shields.io/badge/PWA-Ready-c9a84c?style=for-the-badge&logo=pwa)](https://jamesrwatt.github.io/Up-and-Down-the-River-Tournament-Claude-One-Shot-/)
+[![No Install](https://img.shields.io/badge/No_Install-Required-3a7bd5?style=for-the-badge)](https://jamesrwatt.github.io/Up-and-Down-the-River-Tournament-Claude-One-Shot-/)
 
 *Works on any phone or tablet · Offline capable · Cloud sync optional*
 
@@ -52,7 +52,7 @@
 ## 📱 How to Access
 
 ### Option 1 — Open in Browser (Instant, No Install)
-Visit: **https://jamesrwatt.github.io/Up-and-Down-the-River-Tournament/**
+Visit: **https://jamesrwatt.github.io/Up-and-Down-the-River-Tournament-Claude-One-Shot-/**
 
 Works in Chrome, Safari, Firefox, and Edge on any device.
 
@@ -369,8 +369,8 @@ To host your own copy of the app:
 ### Step 1 — Fork or Clone the Repository
 ```bash
 # Clone
-git clone https://github.com/jamesrwatt/Up-and-Down-the-River-Tournament.git
-cd Up-and-Down-the-River-Tournament
+git clone https://jamesrwatt.github.io/Up-and-Down-the-River-Tournament-Claude-One-Shot-.git
+cd Up-and-Down-the-River-Tournament-Claude-One-Shot-
 
 # Or fork via GitHub UI, then clone your fork
 ```
@@ -412,7 +412,7 @@ GitHub Pages will automatically redeploy within ~1 minute.
 ## 📁 File Structure
 
 ```
-Up-and-Down-the-River-Tournament/
+Up-and-Down-the-River-Tournament-Claude-One-Shot-/
 │
 ├── index.html          # Complete PWA app (HTML + CSS + JavaScript)
 │                       # Everything is self-contained in this one file
@@ -614,6 +614,6 @@ Built for family game nights. If you play Up and Down the River with your family
 
 **Made with ♥ and ♣ and ♦ and ♠**
 
-[Open App](https://jamesrwatt.github.io/Up-and-Down-the-River-Tournament/) · [Report a Bug](https://github.com/jamesrwatt/Up-and-Down-the-River-Tournament/issues) · [Request a Feature](https://github.com/jamesrwatt/Up-and-Down-the-River-Tournament/issues)
+[Open App](https://jamesrwatt.github.io/Up-and-Down-the-River-Tournament-Claude-One-Shot-/) · [Report a Bug](https://github.com/jamesrwatt/Up-and-Down-the-River-Tournament-Claude-One-Shot-/issues) · [Request a Feature](https://github.com/jamesrwatt/Up-and-Down-the-River-Tournament-Claude-One-Shot-/issues)
 
 </div>

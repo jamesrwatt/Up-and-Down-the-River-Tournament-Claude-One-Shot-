@@ -1,488 +1,1636 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Up and Down the River Tournament</title>
-    <link rel="manifest" href="manifest.json">
-    <style>
-        :root {
-            --primary: #2c3e50; --gold: #d4af37; --danger: #e74c3c; --bg: #1a1a1a; --text: #ecf0f1;
-        }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
-        .hidden { display: none !important; }
-        
-        /* UI Components */
-        .card { background: #2a2a2a; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        h1, h2 { color: var(--gold); text-align: center; margin-top: 0; }
-        button { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 16px; margin: 5px 0; width: 100%; transition: 0.3s; }
-        button:active { transform: scale(0.98); }
-        .btn-gold { background: var(--gold); color: black; font-weight: bold; }
-        .btn-danger { background: var(--danger); }
-        
-        input, select { background: #333; color: white; border: 1px solid #444; padding: 10px; border-radius: 6px; width: 100%; margin-bottom: 10px; }
-        
-        /* Stats Table */
-        .table-container { overflow-x: auto; margin-top: 15px; }
-        table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        th, td { border: 1px solid #444; padding: 8px; text-align: center; }
-        th { background: #222; position: sticky; top: 0; }
-        tr:nth-child(even) { background: #242424; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#0b1e13">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="River">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Up &amp; Down the River</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,400&family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#060f09;
+  --surface:#0b1e13;
+  --card:#112418;
+  --card2:#162d1e;
+  --gold:#c9a84c;
+  --gold2:#e8c96b;
+  --cream:#f5e6c8;
+  --cream2:#ddd0b0;
+  --green:#1a6b3c;
+  --green2:#22883f;
+  --red:#d04040;
+  --blue:#3a7bd5;
+  --muted:#7a9080;
+  --border:#1e3a28;
+  --border2:#2a5038;
+  --shadow:rgba(0,0,0,.6);
+  --hearts:#e74c3c;
+  --diamonds:#e74c3c;
+  --clubs:#f5e6c8;
+  --spades:#f5e6c8;
+  --notrump:#9ba4b5;
+  --radius:12px;
+  --font-display:'Playfair Display',serif;
+  --font-body:'Crimson Pro',serif;
+  --font-mono:'Courier Prime',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--cream);font-family:var(--font-body);font-size:16px}
+body{display:flex;flex-direction:column}
 
-        /* Game UI */
-        .entry-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); gap: 10px; margin-bottom: 15px; }
-        .player-input-group { text-align: center; }
-        .round-info { background: #333; padding: 10px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 10px; }
-        
-        /* Modal */
-        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; overflow-y: auto; padding: 20px; box-sizing: border-box; }
-        
-        .qr-container { text-align: center; margin: 20px 0; }
-        .qr-placeholder { background: white; padding: 10px; display: inline-block; }
-    </style>
+/* ===== SCREENS ===== */
+.screen{display:none;flex-direction:column;height:100%;overflow:hidden;animation:fadeIn .25s ease}
+.screen.active{display:flex}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ===== SCROLLABLE AREA ===== */
+.scroll-area{flex:1;overflow-y:auto;overflow-x:hidden;padding:12px;-webkit-overflow-scrolling:touch}
+.scroll-area::-webkit-scrollbar{width:4px}
+.scroll-area::-webkit-scrollbar-track{background:transparent}
+.scroll-area::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+/* ===== HEADER ===== */
+.app-header{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;box-shadow:0 2px 12px var(--shadow)}
+.logo-mark{width:38px;height:38px;flex-shrink:0}
+.app-title{font-family:var(--font-display);font-size:1.3rem;font-weight:900;color:var(--gold);letter-spacing:.04em;line-height:1}
+.app-subtitle{font-size:.72rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+.header-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+
+/* ===== BUTTONS ===== */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:10px 16px;border:none;border-radius:var(--radius);font-family:var(--font-body);font-size:.95rem;font-weight:600;cursor:pointer;transition:all .15s ease;letter-spacing:.03em;white-space:nowrap}
+.btn-primary{background:var(--green);color:var(--cream);box-shadow:0 2px 8px rgba(26,107,60,.4)}
+.btn-primary:hover,.btn-primary:active{background:var(--green2);transform:translateY(-1px)}
+.btn-gold{background:var(--gold);color:#0a1200;box-shadow:0 2px 8px rgba(201,168,76,.35)}
+.btn-gold:hover,.btn-gold:active{background:var(--gold2);transform:translateY(-1px)}
+.btn-ghost{background:transparent;color:var(--cream);border:1px solid var(--border2)}
+.btn-ghost:hover,.btn-ghost:active{background:var(--card);border-color:var(--gold);color:var(--gold)}
+.btn-danger{background:#7a1a1a;color:var(--cream)}
+.btn-danger:hover,.btn-danger:active{background:#9a2020}
+.btn-sm{padding:6px 12px;font-size:.82rem;border-radius:8px}
+.btn-xs{padding:4px 8px;font-size:.75rem;border-radius:6px}
+.btn-icon{width:36px;height:36px;padding:0;border-radius:50%}
+.btn:disabled{opacity:.4;pointer-events:none}
+.btn-full{width:100%}
+
+/* ===== HOME SCREEN ===== */
+#screen-home .scroll-area{padding:0}
+.home-hero{background:linear-gradient(160deg,var(--surface) 0%,#0a1a10 100%);padding:18px 14px 14px;border-bottom:1px solid var(--border)}
+.tournament-badge{display:inline-flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border2);border-radius:20px;padding:5px 12px 5px 5px;margin-bottom:12px}
+.tournament-dot{width:10px;height:10px;border-radius:50%;background:var(--green2);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,136,63,.4)}50%{opacity:.8;box-shadow:0 0 0 6px rgba(34,136,63,0)}}
+.tournament-label{font-size:.78rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+.tournament-value{font-family:var(--font-mono);font-size:.9rem;color:var(--gold)}
+.home-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+.home-actions .btn-new-game{grid-column:1/-1}
+.home-actions .btn-resume-hidden{display:none}
+
+/* ===== STATS TABLE ===== */
+.section-label{font-size:.68rem;color:var(--gold);letter-spacing:.15em;text-transform:uppercase;padding:10px 14px 4px;font-family:var(--font-mono)}
+.stats-outer{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.stats-table{width:max-content;min-width:100%;border-collapse:collapse;font-size:.82rem}
+.stats-table th,.stats-table td{padding:7px 10px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
+.stats-table th{font-family:var(--font-display);font-size:.8rem;color:var(--gold);background:var(--surface);position:sticky;top:0;z-index:2;border-bottom:2px solid var(--border2)}
+.stats-table td:first-child,.stats-table th:first-child{text-align:left;position:sticky;left:0;background:var(--card);z-index:1;padding-left:14px;max-width:200px;font-size:.78rem;color:var(--cream2)}
+.stats-table th:first-child{background:var(--surface);z-index:3;color:var(--muted);font-size:.7rem;letter-spacing:.08em}
+.stats-table tr:hover td{background:rgba(255,255,255,.03)}
+.stats-section-row td{background:var(--surface)!important;color:var(--gold);font-family:var(--font-mono);font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;padding:8px 14px;border-bottom:1px solid var(--border2)}
+.stats-table td.highlight{color:var(--gold);font-weight:700}
+.stats-table td.mono{font-family:var(--font-mono)}
+
+/* ===== GAME SCREEN ===== */
+.game-header{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 12px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+.round-info-pill{background:var(--card);border:1px solid var(--border2);border-radius:20px;padding:5px 14px;display:flex;align-items:center;gap:10px;flex:1}
+.round-num{font-family:var(--font-display);font-size:1rem;font-weight:700;color:var(--cream)}
+.round-cards{font-family:var(--font-mono);font-size:.85rem;color:var(--muted)}
+.trump-badge{display:inline-flex;align-items:center;gap:4px;font-size:.82rem;font-weight:600;padding:2px 8px;border-radius:10px;background:var(--card2)}
+.trump-hearts,.trump-diamonds{color:var(--red)}
+.trump-clubs,.trump-spades{color:var(--cream)}
+.trump-notrump{color:var(--notrump)}
+
+.entry-panel{background:var(--surface);border-bottom:1px solid var(--border);padding:12px;flex-shrink:0}
+.entry-phase{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.phase-label{font-family:var(--font-display);font-size:1.1rem;font-weight:700;color:var(--gold)}
+.dealer-label{margin-left:auto;font-size:.78rem;color:var(--muted)}
+.dealer-name{color:var(--cream2);font-style:italic}
+
+.entry-grid{display:grid;gap:8px;margin-bottom:10px}
+.entry-player-row{display:grid;grid-template-columns:110px 1fr auto;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 10px}
+.entry-player-name{font-size:.88rem;color:var(--cream2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.entry-input{width:60px;padding:6px 8px;background:var(--card2);border:1px solid var(--border2);border-radius:8px;color:var(--cream);font-family:var(--font-mono);font-size:1.1rem;text-align:center;-moz-appearance:textfield}
+.entry-input::-webkit-outer-spin-button,.entry-input::-webkit-inner-spin-button{-webkit-appearance:none}
+.entry-input:focus{outline:none;border-color:var(--gold);background:var(--surface)}
+.entry-input.forbidden{border-color:var(--red)!important}
+.entry-hint{font-size:.7rem;color:var(--muted);text-align:right;min-width:80px}
+.entry-hint.warn{color:var(--red)}
+.entry-hint.ok{color:var(--green2)}
+
+.entry-footer{display:flex;align-items:center;gap:10px}
+.entry-total-badge{background:var(--card);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;font-family:var(--font-mono);font-size:.85rem;color:var(--cream)}
+.entry-total-badge.valid{border-color:var(--green2);color:var(--green2)}
+.entry-total-badge.invalid{border-color:var(--red);color:var(--red)}
+
+/* ===== ROUNDS HISTORY TABLE ===== */
+.rounds-history{flex:1;overflow:auto}
+.rounds-table{width:max-content;min-width:100%;border-collapse:collapse;font-size:.8rem}
+.rounds-table th,.rounds-table td{padding:6px 10px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
+.rounds-table th{background:var(--surface);color:var(--muted);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;position:sticky;top:0;z-index:2}
+.rounds-table td:first-child,.rounds-table th:first-child{position:sticky;left:0;background:var(--card);text-align:center;z-index:1}
+.rounds-table th:first-child{background:var(--surface);z-index:3}
+.rounds-table td.made{color:var(--green2)}
+.rounds-table td.missed{color:var(--red)}
+.rounds-table td.score-cell{font-family:var(--font-mono);font-weight:700}
+.trump-sym{margin-right:3px}
+.round-row-header{background:var(--card2)!important}
+.round-row-header td{color:var(--muted);font-size:.72rem;letter-spacing:.06em;padding:4px 10px}
+.round-total-row td{background:var(--surface)!important;font-family:var(--font-mono);font-weight:700;color:var(--gold);border-top:2px solid var(--border2)}
+
+/* ===== MODALS ===== */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;align-items:flex-end;justify-content:center;animation:fadeIn .2s ease}
+.modal-overlay.active{display:flex}
+.modal-sheet{background:var(--surface);border-radius:18px 18px 0 0;width:100%;max-width:640px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;animation:slideUp .25s ease}
+@keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+.modal-handle{width:36px;height:4px;background:var(--border2);border-radius:2px;margin:10px auto 0}
+.modal-header{display:flex;align-items:center;padding:14px 16px 10px;gap:10px;border-bottom:1px solid var(--border)}
+.modal-title{font-family:var(--font-display);font-size:1.15rem;font-weight:700;color:var(--gold)}
+.modal-close{margin-left:auto;background:transparent;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;padding:4px;line-height:1;border-radius:6px}
+.modal-close:hover{color:var(--cream);background:var(--card)}
+.modal-body{overflow-y:auto;overflow-x:hidden;flex:1;padding:14px 16px;-webkit-overflow-scrolling:touch}
+.modal-footer{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0}
+
+/* ===== SETTINGS ===== */
+.settings-group{margin-bottom:16px}
+.settings-label{font-size:.72rem;color:var(--gold);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;font-family:var(--font-mono)}
+.settings-input{width:100%;padding:10px 12px;background:var(--card);border:1px solid var(--border2);border-radius:10px;color:var(--cream);font-family:var(--font-body);font-size:.95rem}
+.settings-input:focus{outline:none;border-color:var(--gold)}
+select.settings-input option{background:var(--card)}
+.settings-divider{border:none;border-top:1px solid var(--border);margin:16px 0}
+.settings-panel{background:var(--card);border:1px solid var(--border2);border-radius:12px;padding:12px;margin-bottom:12px}
+.settings-panel-title{font-size:.75rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px}
+
+/* ===== QR CODE ===== */
+#qr-container{display:flex;justify-content:center;padding:12px 0}
+#qr-container canvas,#qr-container img{border:3px solid var(--gold);border-radius:10px;width:160px;height:160px}
+.qr-url{text-align:center;font-size:.72rem;color:var(--muted);margin-top:6px;word-break:break-all}
+
+/* ===== CONFIRM DIALOG ===== */
+#modal-confirm .modal-sheet{border-radius:18px;max-height:none;width:calc(100% - 32px);max-width:400px;margin:auto}
+#modal-confirm{align-items:center}
+.confirm-msg{font-size:1rem;color:var(--cream);line-height:1.5;margin-bottom:4px}
+
+/* ===== LEADERBOARD ===== */
+.lb-filter-row{display:flex;gap:8px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px}
+.lb-filter-chip{padding:5px 12px;border-radius:20px;border:1px solid var(--border2);background:transparent;color:var(--muted);font-size:.8rem;cursor:pointer;white-space:nowrap}
+.lb-filter-chip.active{background:var(--gold);border-color:var(--gold);color:#0a1200;font-weight:700}
+
+/* ===== TOAST ===== */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);background:var(--card2);border:1px solid var(--border2);border-radius:12px;padding:10px 20px;font-size:.88rem;color:var(--cream);z-index:999;transition:transform .3s ease,opacity .3s ease;opacity:0;white-space:nowrap;max-width:calc(100vw - 32px);text-align:center}
+#toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+#toast.success{border-color:var(--green2);color:var(--green2)}
+#toast.error{border-color:var(--red);color:var(--red)}
+
+/* ===== EDIT ROUND ===== */
+.edit-round-list{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.edit-round-item{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:8px 12px;cursor:pointer}
+.edit-round-item:hover{border-color:var(--gold)}
+.edit-round-item.selected{border-color:var(--gold);background:var(--card2)}
+.edit-round-num{font-family:var(--font-mono);font-size:.9rem;font-weight:700;color:var(--gold);min-width:28px}
+.edit-round-info{font-size:.82rem;color:var(--muted)}
+
+/* ===== NEW GAME ===== */
+#new-game-players{width:100%;min-height:100px;resize:vertical;padding:10px 12px;background:var(--card);border:1px solid var(--border2);border-radius:10px;color:var(--cream);font-family:var(--font-body);font-size:.95rem;line-height:1.6}
+#new-game-players:focus{outline:none;border-color:var(--gold)}
+.player-count-hint{font-size:.78rem;color:var(--muted);margin-top:6px}
+
+/* ===== EMPTY STATE ===== */
+.empty-state{text-align:center;padding:32px 16px;color:var(--muted)}
+.empty-state svg{margin-bottom:12px;opacity:.4}
+.empty-state p{font-size:.9rem}
+
+/* ===== SYNC STATUS ===== */
+.sync-status{display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted)}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.sync-dot.synced{background:var(--green2)}
+.sync-dot.pending{background:var(--gold);animation:pulse 1.5s infinite}
+.sync-dot.error{background:var(--red)}
+
+/* ===== MISC ===== */
+.money-value{font-family:var(--font-mono);color:var(--gold)}
+.text-gold{color:var(--gold)}
+.text-red{color:var(--red)}
+.text-green{color:var(--green2)}
+.text-muted{color:var(--muted)}
+.fw-bold{font-weight:700}
+.flex-center{display:flex;align-items:center;justify-content:center}
+.gap-8{gap:8px}
+.mb-8{margin-bottom:8px}
+.mb-12{margin-bottom:12px}
+.mb-16{margin-bottom:16px}
+.mt-8{margin-top:8px}
+
+.score-bar-wrap{display:flex;align-items:center;gap:6px}
+.score-bar{height:4px;border-radius:2px;background:var(--green);transition:width .3s ease;min-width:4px}
+
+/* ===== GAME PROGRESS ===== */
+.progress-row{display:flex;gap:3px;margin-top:6px;flex-wrap:nowrap;overflow:hidden}
+.progress-pip{height:5px;flex:1;border-radius:2px;background:var(--border2)}
+.progress-pip.done{background:var(--green)}
+.progress-pip.current{background:var(--gold);animation:pulse 1.5s infinite}
+.progress-pip.nt{background:var(--blue)}
+
+/* responsive */
+@media(min-width:480px){
+  .home-actions{grid-template-columns:1fr 1fr 1fr}
+  .home-actions .btn-new-game{grid-column:1/-1}
+  .entry-player-row{grid-template-columns:140px 1fr auto}
+}
+@media(min-width:640px){
+  .modal-overlay{align-items:center}
+  .modal-sheet{border-radius:18px;max-height:85vh}
+  .modal-handle{display:none}
+}
+</style>
 </head>
 <body>
 
-    <div id="homeScreen">
-        <img src="icon.png" alt="Logo" style="width: 80px; display: block; margin: 0 auto 10px;">
-        <h1>River Tournament</h1>
-        
-        <div id="activeTournamentSection" class="card">
-            <h2>Current Tournament Standings</h2>
-            <div class="table-container">
-                <table id="mainStatsTable"></table>
-            </div>
-        </div>
+<!-- ========== HOME SCREEN ========== -->
+<div id="screen-home" class="screen active">
+  <div class="app-header">
+    <svg class="logo-mark" viewBox="0 0 38 38" xmlns="http://www.w3.org/2000/svg">
+      <rect width="38" height="38" rx="8" fill="#1a6b3c"/>
+      <rect x="2" y="2" width="34" height="34" rx="6" fill="none" stroke="#c9a84c" stroke-width="1.2"/>
+      <text x="6" y="14" font-family="serif" font-size="9" fill="#c9a84c" font-weight="bold">A</text>
+      <text x="30" y="36" font-family="serif" font-size="9" fill="#c9a84c" font-weight="bold" text-anchor="end">A</text>
+      <text x="19" y="17" font-family="serif" font-size="11" fill="#e74c3c" text-anchor="middle">&#9829;</text>
+      <text x="13" y="26" font-family="serif" font-size="8" fill="#f5e6c8" text-anchor="middle">&#9824;</text>
+      <text x="25" y="26" font-family="serif" font-size="8" fill="#f5e6c8" text-anchor="middle">&#9827;</text>
+      <path d="M9,29 Q14,24 19,27 Q24,30 29,25" stroke="#c9a84c" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <div class="app-title">Up &amp; Down the River</div>
+      <div class="app-subtitle">Tournament Tracker</div>
+    </div>
+    <div class="header-right">
+      <div class="sync-status" id="sync-status">
+        <div class="sync-dot" id="sync-dot"></div>
+        <span id="sync-label">Local</span>
+      </div>
+      <button class="btn btn-ghost btn-icon" id="btn-settings" title="Settings">&#9881;</button>
+    </div>
+  </div>
 
-        <div class="card">
-            <button id="resumeBtn" class="btn-gold hidden" onclick="app.resumeGame()">RESUME GAME</button>
-            <button onclick="app.showStartGameModal()">START NEW GAME</button>
-            <button onclick="app.showLeaderboard()">ALL-TIME LEADERBOARD</button>
-            <button onclick="app.showSettings()">SETTINGS & SYNC</button>
-        </div>
+  <div class="scroll-area">
+    <div class="home-hero">
+      <div id="tournament-badge" class="tournament-badge">
+        <div class="tournament-dot"></div>
+        <span class="tournament-label">Tournament</span>
+        <span class="tournament-value" id="tournament-id-display">—</span>
+        <span class="tournament-label" style="margin-left:8px">Game</span>
+        <span class="tournament-value" id="tournament-game-display">0 / 20</span>
+      </div>
+
+      <div class="home-actions">
+        <button class="btn btn-primary btn-full btn-new-game" id="btn-new-game">&#9654; New Game</button>
+        <button class="btn btn-gold" id="btn-resume" style="display:none">&#8635; Resume</button>
+        <button class="btn btn-ghost" id="btn-leaderboard">&#127942; Leaderboard</button>
+        <button class="btn btn-ghost" id="btn-finalize-tournament" style="display:none">&#128203; Finalize</button>
+      </div>
+
+      <div class="progress-row" id="home-progress"></div>
     </div>
 
-    <div id="gameScreen" class="hidden">
-        <div class="card">
-            <div id="roundIndicator" class="round-info"></div>
-            <div id="trumpIndicator" class="round-info" style="background: var(--gold); color: black;"></div>
-            
-            <div id="bidEntrySection">
-                <h3>Enter Bids</h3>
-                <div id="bidInputs" class="entry-grid"></div>
-                <button onclick="app.submitBids()">Submit Bids</button>
-            </div>
-
-            <div id="trickEntrySection" class="hidden">
-                <h3>Enter Tricks Won</h3>
-                <div id="trickInputs" class="entry-grid"></div>
-                <button onclick="app.submitTricks()">Submit Round</button>
-            </div>
-            
-            <button class="btn-danger" onclick="app.saveAndExit()">Save & Exit</button>
-        </div>
-
-        <div class="card">
-            <h3>Round History</h3>
-            <div class="table-container">
-                <table id="roundHistoryTable"></table>
-            </div>
-        </div>
+    <div class="section-label">Tournament Standings</div>
+    <div class="stats-outer" id="standings-outer">
+      <div class="empty-state" id="standings-empty">
+        <svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" stroke="#3a5040" stroke-width="2" fill="none"/><text x="24" y="30" text-anchor="middle" fill="#3a5040" font-size="20">&#9827;</text></svg>
+        <p>No tournament data yet.<br>Start a new game to begin!</p>
+      </div>
+      <table class="stats-table" id="standings-table" style="display:none">
+        <thead><tr id="standings-player-row"></tr></thead>
+        <tbody id="standings-body"></tbody>
+      </table>
     </div>
+  </div>
+</div>
 
-    <div id="modalOverlay" class="modal hidden">
-        <div id="modalContent"></div>
-        <button onclick="app.closeModal()" style="margin-top: 20px;">Close</button>
+<!-- ========== GAME SCREEN ========== -->
+<div id="screen-game" class="screen">
+  <div class="game-header">
+    <button class="btn btn-ghost btn-sm" id="btn-save-exit">&#10094; Exit</button>
+    <div class="round-info-pill">
+      <span class="round-num" id="round-num-label">Round 1</span>
+      <span class="round-cards" id="round-cards-label">1 Card</span>
+      <span class="trump-badge" id="trump-badge">&#9829; Hearts</span>
     </div>
+    <button class="btn btn-ghost btn-sm" id="btn-edit-round">&#9998; Edit</button>
+  </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
-    <script>
-        // Global UI Cache and Variables [cite: 3, 4]
-        const UI = {
-            home: document.getElementById('homeScreen'),
-            game: document.getElementById('gameScreen'),
-            modal: document.getElementById('modalOverlay'),
-            modalBody: document.getElementById('modalContent'),
-            mainStats: document.getElementById('mainStatsTable'),
-            roundHistory: document.getElementById('roundHistoryTable'),
-            resumeBtn: document.getElementById('resumeBtn')
-        };
+  <div class="entry-panel" id="entry-panel">
+    <div class="entry-phase">
+      <span class="phase-label" id="entry-phase-label">BIDDING</span>
+      <span class="dealer-label">Dealer: <span class="dealer-name" id="dealer-name-label">—</span></span>
+    </div>
+    <div class="entry-grid" id="entry-grid"></div>
+    <div class="entry-footer">
+      <div class="entry-total-badge" id="entry-total-badge">Total: 0 / 0</div>
+      <button class="btn btn-primary" id="btn-submit-entry" style="margin-left:auto">Submit</button>
+    </div>
+  </div>
 
-        let STATE = {
-            currentTournament: [], // Array of game objects [cite: 32]
-            allTime: [],           // Historical data [cite: 32]
-            activeGame: null,
-            role: 'Viewer',
-            isAdmin: false,
-            isScorekeeper: false,
-            cloudUrl: "https://script.google.com/macros/s/AKfycbzxho-Nb0NwrvGO6Idc2hOa42u78W8Y86mX9xmhbj55e2l_2hBVf_1RpmsFZ0gYB5jD/exec"
-        };
+  <div class="rounds-history" id="rounds-history">
+    <div style="overflow-x:auto;height:100%">
+      <table class="rounds-table" id="rounds-table">
+        <thead>
+          <tr id="rounds-header-row"></tr>
+        </thead>
+        <tbody id="rounds-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
-        const app = {
-            init() {
-                this.loadLocalData();
-                this.checkPermissions();
-                this.renderMainStats();
-                if (STATE.activeGame) UI.resumeBtn.classList.remove('hidden');
-                
-                // Register Service Worker
-                if ('serviceWorker' in navigator) {
-                    navigator.serviceWorker.register('sw.js');
-                }
-            },
+<!-- ========== MODAL: NEW GAME ========== -->
+<div class="modal-overlay" id="modal-new-game">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">New Game</div>
+      <button class="modal-close" data-close="modal-new-game">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-group">
+        <div class="settings-label">Players (one per line or comma-separated)</div>
+        <textarea id="new-game-players" class="settings-input" rows="6"></textarea>
+        <div class="player-count-hint" id="player-count-hint">Enter 2–10 players</div>
+      </div>
+      <div class="settings-group">
+        <div class="settings-label">River Preview</div>
+        <div id="river-preview" class="settings-panel" style="font-family:var(--font-mono);font-size:.78rem;color:var(--muted);line-height:1.8"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" style="flex:1" data-close="modal-new-game">Cancel</button>
+      <button class="btn btn-primary" style="flex:2" id="btn-start-game">&#9654; Start Game</button>
+    </div>
+  </div>
+</div>
 
-            checkPermissions() {
-                // Role handling [cite: 6]
-                STATE.isAdmin = STATE.role === 'Admin';
-                STATE.isScorekeeper = STATE.role === 'Scorekeeper';
-            },
+<!-- ========== MODAL: LEADERBOARD ========== -->
+<div class="modal-overlay" id="modal-leaderboard">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">&#127942; All-Time Leaderboard</div>
+      <button class="modal-close" data-close="modal-leaderboard">&times;</button>
+    </div>
+    <div class="modal-body" style="padding:0">
+      <div style="padding:12px 16px 0">
+        <div class="lb-filter-row" id="lb-filter-row"></div>
+      </div>
+      <div class="stats-outer">
+        <div class="empty-state" id="lb-empty">
+          <svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" stroke="#3a5040" stroke-width="2" fill="none"/><text x="24" y="30" text-anchor="middle" fill="#3a5040" font-size="20">&#9827;</text></svg>
+          <p>No all-time data yet.</p>
+        </div>
+        <table class="stats-table" id="lb-table" style="display:none">
+          <thead><tr id="lb-player-row"></tr></thead>
+          <tbody id="lb-body"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer" id="lb-footer">
+      <button class="btn btn-ghost btn-sm" id="btn-lb-sync" style="flex:1">&#8635; Sync Cloud</button>
+    </div>
+  </div>
+</div>
 
-            loadLocalData() {
-                const stored = localStorage.getItem('river_pwa_data');
-                if (stored) {
-                    const parsed = JSON.parse(stored);
-                    STATE.allTime = parsed.allTime || [];
-                    STATE.currentTournament = parsed.currentTournament || [];
-                    STATE.activeGame = parsed.activeGame || null;
-                    STATE.role = parsed.role || 'Viewer';
-                }
-            },
+<!-- ========== MODAL: SETTINGS ========== -->
+<div class="modal-overlay" id="modal-settings">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">&#9881; Settings</div>
+      <button class="modal-close" data-close="modal-settings">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="settings-group">
+        <div class="settings-label">Role</div>
+        <select class="settings-input" id="settings-role">
+          <option value="viewer">&#128065; Viewer (Read-Only Cloud)</option>
+          <option value="scorekeeper">&#9997; Scorekeeper (Local Only)</option>
+          <option value="admin">&#128274; Admin (Full Access)</option>
+        </select>
+      </div>
+      <div class="settings-group" id="settings-password-row" style="display:none">
+        <div class="settings-label">Admin Password</div>
+        <input type="password" class="settings-input" id="settings-password" placeholder="Enter admin password">
+      </div>
+      <div class="settings-group">
+        <div class="settings-label">Google Apps Script URL</div>
+        <input type="url" class="settings-input" id="settings-gas-url" placeholder="https://script.google.com/...">
+      </div>
+      <hr class="settings-divider">
+      <div id="admin-panel" style="display:none">
+        <div class="settings-panel">
+          <div class="settings-panel-title">Admin Controls</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <button class="btn btn-primary btn-sm" id="btn-push-cloud">&#9729; Push to Cloud</button>
+            <button class="btn btn-danger btn-sm" id="btn-clear-tournament-admin">&#128465; Clear Tournament (Cloud)</button>
+            <button class="btn btn-danger btn-sm" id="btn-clear-leaderboard-admin">&#128465; Clear Leaderboard (Cloud)</button>
+          </div>
+        </div>
+      </div>
+      <div id="scorekeeper-panel" style="display:none">
+        <div class="settings-panel">
+          <div class="settings-panel-title">Scorekeeper Controls</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <button class="btn btn-danger btn-sm" id="btn-clear-tournament-local">&#128465; Clear Tournament (Local)</button>
+            <button class="btn btn-danger btn-sm" id="btn-clear-leaderboard-local">&#128465; Clear Leaderboard (Local)</button>
+          </div>
+        </div>
+      </div>
+      <hr class="settings-divider">
+      <div class="settings-group">
+        <div class="settings-label">Share App (QR Code)</div>
+        <div id="qr-container"></div>
+        <div class="qr-url">https://jamesrwatt.github.io/Up-and-Down-the-River-Tournament-Claude-One-Shot-/</div>
+      </div>
+      <div style="text-align:center;margin-top:16px">
+        <div style="font-size:.7rem;color:var(--muted)">Up &amp; Down the River v1.0</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" style="flex:1" data-close="modal-settings">Cancel</button>
+      <button class="btn btn-primary" style="flex:2" id="btn-save-settings">Save Settings</button>
+    </div>
+  </div>
+</div>
 
-            saveLocalData() {
-                localStorage.setItem('river_pwa_data', JSON.stringify({
-                    allTime: STATE.allTime,
-                    currentTournament: STATE.currentTournament,
-                    activeGame: STATE.activeGame,
-                    role: STATE.role
-                }));
-            },
+<!-- ========== MODAL: EDIT ROUND ========== -->
+<div class="modal-overlay" id="modal-edit-round">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">&#9998; Edit Round</div>
+      <button class="modal-close" data-close="modal-edit-round">&times;</button>
+    </div>
+    <div class="modal-body" id="edit-round-body">
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" style="flex:1" data-close="modal-edit-round">Cancel</button>
+      <button class="btn btn-primary" style="flex:2" id="btn-save-edit">Save Changes</button>
+    </div>
+  </div>
+</div>
 
-            // --- Game Logic ---
-            
-            buildRiver(playersCount) {
-                const maxCards = Math.min(10, Math.floor(52 / playersCount)); // [cite: 15]
-                const sequence = [];
-                for (let i = 1; i <= maxCards; i++) sequence.push(i);
-                for (let i = maxCards - 1; i >= 1; i--) sequence.push(i);
-                return sequence; // [cite: 14]
-            },
+<!-- ========== MODAL: CONFIRM ========== -->
+<div class="modal-overlay" id="modal-confirm">
+  <div class="modal-sheet" style="border-radius:18px;max-width:380px;margin:auto">
+    <div class="modal-header">
+      <div class="modal-title" id="confirm-title">Confirm</div>
+    </div>
+    <div class="modal-body">
+      <p class="confirm-msg" id="confirm-msg"></p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" style="flex:1" id="btn-confirm-no">Cancel</button>
+      <button class="btn btn-primary" style="flex:1" id="btn-confirm-yes">Confirm</button>
+    </div>
+  </div>
+</div>
 
-            getTrump(roundIndex) {
-                const suits = ["Hearts", "Clubs", "Diamonds", "Spades"]; // [cite: 16]
-                const middleStart = 8; // Adjust based on maxCards logic
-                // Exception for middle 5 rounds 
-                // Logic simplified for various maxCards; ideally mapped to indices 8-12
-                if (roundIndex >= 8 && roundIndex <= 12) {
-                    const subIdx = roundIndex - 8;
-                    return subIdx % 2 === 0 ? "No Trump" : suits[subIdx % 4];
-                }
-                return suits[roundIndex % 4];
-            },
+<!-- ========== TOAST ========== -->
+<div id="toast"></div>
 
-            showStartGameModal() {
-                const lastPlayers = STATE.activeGame ? STATE.activeGame.players.map(p => p.name).join(', ') : "Mom, Georgia, Lucy, Jack, Dad"; // [cite: 42, 43]
-                UI.modalBody.innerHTML = `
-                    <h2>Start New Game</h2>
-                    <p>Enter player names (comma separated):</p>
-                    <input type="text" id="playerNamesInput" value="${lastPlayers}">
-                    <button class="btn-gold" onclick="app.startGame()">START</button>
-                `;
-                UI.modal.classList.remove('hidden');
-            },
+<script>
+// ============================================================
+//  UP & DOWN THE RIVER — FULL APP JAVASCRIPT
+// ============================================================
 
-            startGame() {
-                const names = document.getElementById('playerNamesInput').value.split(',').map(n => n.trim());
-                if (names.length < 2) return alert("Need at least 2 players");
+// ── GLOBALS ─────────────────────────────────────────────────
+const APP_URL = 'https://jamesrwatt.github.io/Up-and-Down-the-River-Tournament-Claude-One-Shot-/';
+const ADMIN_PASSWORD = 'RiverAdmin2026';
+const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbzxho-Nb0NwrvGO6Idc2hOa42u78W8Y86mX9xmhbj55e2l_2hBVf_1RpmsFZ0gYB5jD/exec';
+const DEFAULT_PLAYERS = 'Mom, Georgia, Lucy, Jack, Dad';
+const MAX_TOURNAMENT_GAMES = 20;
+const TRUMP_SEQUENCE = ['Hearts','Clubs','Diamonds','Spades'];
 
-                const river = this.buildRiver(names.length);
-                STATE.activeGame = {
-                    id: Date.now(),
-                    players: names.map(n => ({ name: n, score: 0, totalSets: 0, totalTricks: 0, history: [] })),
-                    river: river,
-                    currentRound: 0,
-                    bids: [],
-                    isFinalized: false,
-                    tournamentId: STATE.currentTournament.length > 0 ? STATE.currentTournament[0].tournamentId : 1
-                };
-                
-                this.closeModal();
-                this.renderGame();
-                UI.home.classList.add('hidden');
-                UI.game.classList.remove('hidden');
-                this.saveLocalData();
-            },
+let IS_ADMIN = false;
+let IS_SCOREKEEPER = false;
+let GAS_URL = DEFAULT_GAS_URL;
 
-            renderGame() {
-                const g = STATE.activeGame;
-                const cards = g.river[g.currentRound];
-                UI.roundIndicator.innerText = `Round ${g.currentRound + 1} of ${g.river.length} (${cards} Cards)`;
-                UI.trumpIndicator.innerText = `Trump: ${this.getTrump(g.currentRound)}`;
-                
-                // Render Bid Inputs
-                const bidDiv = document.getElementById('bidInputs');
-                bidDiv.innerHTML = g.players.map((p, i) => `
-                    <div class="player-input-group">
-                        <label>${p.name}</label>
-                        <input type="number" id="bid_${i}" min="0" max="${cards}" value="0">
-                    </div>
-                `).join('');
-                
-                document.getElementById('bidEntrySection').classList.remove('hidden');
-                document.getElementById('trickEntrySection').classList.add('hidden');
-                this.renderRoundHistory();
-            },
+// Data stores
+let allTime = {};           // { players:{name:{...stats}}, games:[], tournamentId }
+let currentTournament = {}; // { id, games:[], players:[] }
+let currentGame = null;     // live game object
 
-            submitBids() {
-                const g = STATE.activeGame;
-                const cards = g.river[g.currentRound];
-                let totalBids = 0;
-                const bids = [];
-                
-                for(let i=0; i < g.players.length; i++) {
-                    const b = parseInt(document.getElementById(`bid_${i}`).value);
-                    bids.push(b);
-                    totalBids += b;
-                }
+// UI cache
+const UI = {};
 
-                // Dealer Rule: Total bids != cards in round 
-                if (totalBids === cards) {
-                    return alert(`Illegal Bidding! Total bids cannot equal ${cards}. Someone must go set.`);
-                }
+// ── DOM CACHE ────────────────────────────────────────────────
+function cacheUI() {
+  const ids = [
+    'screen-home','screen-game',
+    'sync-dot','sync-label',
+    'tournament-id-display','tournament-game-display',
+    'home-progress',
+    'btn-new-game','btn-resume','btn-leaderboard','btn-finalize-tournament','btn-settings',
+    'standings-outer','standings-empty','standings-table','standings-player-row','standings-body',
+    'round-num-label','round-cards-label','trump-badge',
+    'entry-panel','entry-phase-label','dealer-name-label','entry-grid',
+    'entry-total-badge','btn-submit-entry',
+    'rounds-table','rounds-header-row','rounds-body',
+    'btn-save-exit','btn-edit-round',
+    'new-game-players','player-count-hint','river-preview',
+    'btn-start-game',
+    'lb-filter-row','lb-empty','lb-table','lb-player-row','lb-body','lb-footer','btn-lb-sync',
+    'settings-role','settings-password-row','settings-password','settings-gas-url',
+    'admin-panel','scorekeeper-panel',
+    'btn-push-cloud','btn-clear-tournament-admin','btn-clear-leaderboard-admin',
+    'btn-clear-tournament-local','btn-clear-leaderboard-local',
+    'qr-container',
+    'edit-round-body','btn-save-edit',
+    'confirm-title','confirm-msg','btn-confirm-yes','btn-confirm-no',
+    'toast'
+  ];
+  ids.forEach(id => { UI[id.replace(/-([a-z])/g, (_,c)=>c.toUpperCase())] = document.getElementById(id); });
+  // also keep dash-key for convenience
+  ids.forEach(id => { UI[id] = document.getElementById(id); });
+}
 
-                g.bids = bids;
-                document.getElementById('bidEntrySection').classList.add('hidden');
-                const trickDiv = document.getElementById('trickInputs');
-                trickDiv.innerHTML = g.players.map((p, i) => `
-                    <div class="player-input-group">
-                        <label>${p.name}</label>
-                        <input type="number" id="trick_${i}" min="0" max="${cards}" value="0">
-                    </div>
-                `).join('');
-                document.getElementById('trickEntrySection').classList.remove('hidden');
-            },
+// ── PERMISSIONS ──────────────────────────────────────────────
+function checkPermissions() {
+  const role = localStorage.getItem('role') || 'viewer';
+  IS_ADMIN = false; IS_SCOREKEEPER = false;
+  if (role === 'admin') { IS_ADMIN = true; IS_SCOREKEEPER = true; }
+  else if (role === 'scorekeeper') { IS_SCOREKEEPER = true; }
+  updatePermissionUI();
+}
 
-            submitTricks() {
-                const g = STATE.activeGame;
-                const cards = g.river[g.currentRound];
-                const tricks = [];
-                let sumTricks = 0;
+function updatePermissionUI() {
+  const role = localStorage.getItem('role') || 'viewer';
+  UI['admin-panel'].style.display = IS_ADMIN ? 'block' : 'none';
+  UI['scorekeeper-panel'].style.display = IS_SCOREKEEPER ? 'block' : 'none';
+  UI['btn-new-game'].disabled = !IS_SCOREKEEPER;
+  UI['btn-finalize-tournament'].style.display = IS_SCOREKEEPER && (currentTournament.games||[]).length > 0 ? 'flex' : 'none';
+}
 
-                for(let i=0; i < g.players.length; i++) {
-                    const t = parseInt(document.getElementById(`trick_${i}`).value);
-                    tricks.push(t);
-                    sumTricks += t;
-                }
+// ── RIVER BUILDER ────────────────────────────────────────────
+function buildRiver(playerCount) {
+  const max = Math.min(10, Math.floor(52 / playerCount));
+  const river = [];
+  for (let i = 1; i <= max; i++) river.push(i);
+  for (let i = max - 1; i >= 1; i--) river.push(i);
+  return river; // e.g. [1,2,3,...,max,...,3,2,1]
+}
 
-                if (sumTricks !== cards) return alert(`Error: Total tricks must equal ${cards}`);
+function getTrump(roundIndex, totalRounds) {
+  // Middle 5 rounds: alternate NoTrump / suit / NoTrump / suit / NoTrump
+  const mid = Math.floor(totalRounds / 2);
+  const midStart = mid - 2;
+  const midEnd = mid + 2;
+  // Track suit index globally per game
+  if (roundIndex >= midStart && roundIndex <= midEnd) {
+    const offset = roundIndex - midStart; // 0..4
+    if (offset === 0 || offset === 2 || offset === 4) return 'No Trump';
+    // suit continues sequence
+  }
+  // Count how many non-NT rounds before this index to get suit index
+  let suitIdx = 0;
+  for (let i = 0; i < roundIndex; i++) {
+    const off = i - midStart;
+    const inMid = i >= midStart && i <= midEnd;
+    if (!inMid || (inMid && (off === 1 || off === 3))) suitIdx++;
+    else if (inMid && (off === 0 || off === 2 || off === 4)) { /* NT, no suit advance */ }
+  }
+  return TRUMP_SEQUENCE[suitIdx % 4];
+}
 
-                // Scoring [cite: 18, 19]
-                g.players.forEach((p, i) => {
-                    const bid = g.bids[i];
-                    const won = tricks[i];
-                    let pts = 0;
-                    if (bid === won) {
-                        pts = 10 + won;
-                    } else {
-                        pts = won;
-                        p.totalSets++;
-                    }
-                    p.score += pts;
-                    p.totalTricks += won;
-                    p.history.push({ round: g.currentRound, bid, won, pts, cumulative: p.score });
-                });
+function buildRoundList(river) {
+  const total = river.length;
+  const rounds = [];
+  let suitIdx = 0;
+  const mid = Math.floor(total / 2);
+  const midStart = mid - 2;
+  const midEnd = mid + 2;
+  for (let i = 0; i < total; i++) {
+    let trump;
+    const inMid = (i >= midStart && i <= midEnd);
+    if (inMid) {
+      const off = i - midStart;
+      if (off === 0 || off === 2 || off === 4) trump = 'No Trump';
+      else { trump = TRUMP_SEQUENCE[suitIdx % 4]; suitIdx++; }
+    } else {
+      trump = TRUMP_SEQUENCE[suitIdx % 4]; suitIdx++;
+    }
+    rounds.push({ roundNum: i + 1, cards: river[i], trump });
+  }
+  return rounds;
+}
 
-                g.currentRound++;
-                if (g.currentRound >= g.river.length) {
-                    this.finalizeGame();
-                } else {
-                    this.renderGame();
-                }
-                this.saveLocalData();
-            },
+// ── SCORING ──────────────────────────────────────────────────
+function scoreRound(playerRoundData) {
+  // playerRoundData: [{name, bid, tricks}]
+  return playerRoundData.map(p => {
+    const made = p.tricks === p.bid;
+    const score = made ? 10 + p.tricks : p.tricks;
+    return { ...p, made, score };
+  });
+}
 
-            finalizeGame() {
-                const g = STATE.activeGame;
-                
-                // Calc Financials [cite: 21-27]
-                const maxCards = Math.max(...g.river);
-                const threshold = (10 * (2 * maxCards - 1) - 20) - (10 * g.players.length);
-                
-                // Sort by score for ranking
-                const sorted = [...g.players].sort((a,b) => b.score - a.score);
-                const lastScore = sorted[sorted.length - 1].score;
+function calcGameScore(rounds, players) {
+  // Sum up scores per player
+  const totals = {};
+  players.forEach(p => totals[p] = 0);
+  rounds.forEach(rd => {
+    rd.scores.forEach(s => { if (totals[s.name] !== undefined) totals[s.name] += s.score; });
+  });
+  return totals;
+}
 
-                g.players.forEach(p => {
-                    p.moneyFromLosses = (p.score === lastScore) ? 1.00 : 0; // [cite: 22]
-                    p.moneyFromPenalties = 0;
-                    if (p.score < threshold) {
-                        p.moneyFromPenalties = Math.ceil((threshold - p.score) / 10); // [cite: 26, 27]
-                    }
-                });
+function calcThreshold(playerCount, maxCards) {
+  return (10 * (2 * maxCards - 1) - 20) - (10 * playerCount);
+}
 
-                // Weighted T-Points [cite: 12, 13]
-                sorted.forEach((p, index) => {
-                    // Tie logic: highest shared rank
-                    const rank = sorted.findIndex(x => x.score === p.score) + 1;
-                    const tPoints = Math.max(0, g.players.length - (rank - 1));
-                    g.players.find(orig => orig.name === p.name).tPoints = tPoints;
-                });
+function calcFinancials(gameTotals, threshold) {
+  // gameTotals: {name: score}
+  const entries = Object.entries(gameTotals);
+  const minScore = Math.min(...entries.map(([,v])=>v));
+  const lastPlayers = entries.filter(([,v])=>v===minScore).map(([n])=>n);
+  const fin = {};
+  entries.forEach(([name, score]) => {
+    let losses = 0, penalties = 0;
+    if (lastPlayers.includes(name) && entries.length > 1) losses = 1; // $1 last place
+    if (score < threshold) {
+      penalties = Math.ceil((threshold - score) / 10);
+    }
+    fin[name] = { losses, penalties, total: losses + penalties };
+  });
+  return fin;
+}
 
-                STATE.allTime.push(JSON.parse(JSON.stringify(g))); // [cite: 33]
-                STATE.currentTournament.push(JSON.parse(JSON.stringify(g))); // [cite: 34]
-                STATE.activeGame = null;
-                
-                alert("Game Finalized! Returning to Home.");
-                this.saveLocalData();
-                location.reload();
-            },
+function calcTournamentPoints(gameTotals, playerCount) {
+  // Rank players, ties share highest rank points
+  const entries = Object.entries(gameTotals).sort((a,b)=>b[1]-a[1]);
+  const tPoints = {};
+  let i = 0;
+  while (i < entries.length) {
+    let j = i;
+    // Find all tied
+    while (j < entries.length - 1 && entries[j][1] === entries[j+1][1]) j++;
+    // They all share rank i (0-indexed), so T-points = playerCount - i
+    const pts = playerCount - i;
+    for (let k = i; k <= j; k++) tPoints[entries[k][0]] = pts;
+    i = j + 1;
+  }
+  return tPoints;
+}
 
-            // --- UI Rendering ---
+// ── STATS CALCULATOR ─────────────────────────────────────────
+function blankPlayerStats() {
+  return {
+    name:'',
+    // Points
+    totalTournamentPoints:0, tp5:0, tp4:0, tp3:0, tp2:0, tp1:0,
+    // Financials
+    moneyLosses:0, moneyPenalties:0, totalPot:0, mostMoneyOneGame:0,
+    // General
+    avgGamePoints:0, totalGamePoints:0, totalSets:0, totalTricks:0,
+    // Records
+    mostSetsOneGame:0, leastSetsOneGame:Infinity,
+    mostTricksOneGame:0, leastTricksOneGame:Infinity,
+    lowestScore:Infinity, highestScore:-Infinity,
+    // Streaks
+    longestWinStreakGames:0, longestLoseStreakGames:0,
+    longestWinStreakHands:0, longestLoseStreakHands:0,
+    longestWinStreakAcross:0, longestLoseStreakAcross:0,
+    longestStreakNoPay:0, longestStreakPay:0,
+    // Internal tracking
+    _gameScores:[], _gameResults:[], _handResults:[], _payResults:[],
+    _curWinGames:0, _curLoseGames:0, _curWinHands:0, _curLoseHands:0,
+    _curNoPay:0, _curPay:0
+  };
+}
 
-            renderMainStats() {
-                this.renderStatsTable(UI.mainStats, STATE.currentTournament);
-            },
+function calcStats(games, scope) {
+  // games: array of finalized game objects
+  // scope: 'tournament' or 'allTime'
+  // Returns { playerName: statsObj }
+  const stats = {};
+  const playerGames = {}; // track cross-game hand streaks
 
-            showLeaderboard() {
-                UI.modalBody.innerHTML = `<h2>All-Time Leaderboard</h2><div class="table-container"><table id="lbTable"></table></div>`;
-                this.renderStatsTable(document.getElementById('lbTable'), STATE.allTime);
-                UI.modal.classList.remove('hidden');
-            },
+  games.forEach(game => {
+    const { players, rounds, totals, financials, tPoints, maxCards } = game;
+    if (!players || !rounds) return;
 
-            renderStatsTable(tableEl, dataset) {
-                if (!dataset || dataset.length === 0) {
-                    tableEl.innerHTML = "<tr><td>No data available</td></tr>";
-                    return;
-                }
+    players.forEach(name => {
+      if (!stats[name]) { stats[name] = blankPlayerStats(); stats[name].name = name; }
+      if (!playerGames[name]) playerGames[name] = { handWinStreak:0, handLoseStreak:0, bestHandWin:0, bestHandLose:0, noPayStreak:0, payStreak:0, bestNoPay:0, bestPay:0 };
+      const s = stats[name];
+      const gameScore = totals[name] || 0;
+      const tp = tPoints[name] || 0;
 
-                // Aggregate player stats [cite: 29, 30]
-                const players = {};
-                dataset.forEach(game => {
-                    game.players.forEach(p => {
-                        if (!players[p.name]) players[p.name] = { 
-                            name: p.name, tPoints: 0, totalScore: 0, games: 0, 
-                            losses: 0, penalties: 0, sets: 0, tricks: 0 
-                        };
-                        const s = players[p.name];
-                        s.tPoints += p.tPoints;
-                        s.totalScore += p.score;
-                        s.games++;
-                        s.losses += (p.moneyFromLosses || 0);
-                        s.penalties += (p.moneyFromPenalties || 0);
-                        s.sets += p.totalSets;
-                        s.tricks += p.totalTricks;
-                    });
-                });
+      // T-Points
+      s.totalTournamentPoints += tp;
+      if (tp === 5) s.tp5++;
+      else if (tp === 4) s.tp4++;
+      else if (tp === 3) s.tp3++;
+      else if (tp === 2) s.tp2++;
+      else if (tp === 1) s.tp1++;
 
-                const rows = Object.values(players).sort((a,b) => b.tPoints - a.tPoints);
-                
-                tableEl.innerHTML = `
-                    <tr>
-                        <th>Player</th><th>T-Points</th><th>Avg Score</th><th>Pot $</th><th>Sets</th>
-                    </tr>
-                    ${rows.map(r => `
-                        <tr>
-                            <td>${r.name}</td>
-                            <td>${r.tPoints}</td>
-                            <td>${(r.totalScore / r.games).toFixed(1)}</td>
-                            <td>$${(r.losses + r.penalties).toFixed(2)}</td>
-                            <td>${r.sets}</td>
-                        </tr>
-                    `).join('')}
-                `;
-            },
+      // Financials
+      const fin = financials[name] || { losses:0, penalties:0, total:0 };
+      s.moneyLosses += fin.losses;
+      s.moneyPenalties += fin.penalties;
+      s.totalPot += fin.total;
+      s.mostMoneyOneGame = Math.max(s.mostMoneyOneGame, fin.total);
 
-            renderRoundHistory() {
-                const g = STATE.activeGame;
-                if (!g) return;
-                // Newest rounds at the top [cite: 49]
-                const history = [];
-                for(let r=g.currentRound-1; r >= 0; r--) {
-                    const row = { round: r+1, trump: this.getTrump(r), cards: g.river[r], players: [] };
-                    g.players.forEach(p => row.players.push(p.history[r]));
-                    history.push(row);
-                }
+      // General
+      s.totalGamePoints += gameScore;
+      s._gameScores.push(gameScore);
+      s.lowestScore = Math.min(s.lowestScore, gameScore);
+      s.highestScore = Math.max(s.highestScore, gameScore);
 
-                UI.roundHistory.innerHTML = `
-                    <tr><th>Rd</th><th>Trump</th>${g.players.map(p => `<th>${p.name}</th>`).join('')}</tr>
-                    ${history.map(h => `
-                        <tr>
-                            <td>${h.round}</td>
-                            <td>${h.trump}</td>
-                            ${h.players.map(ph => `<td>B:${ph.bid} W:${ph.won}<br><b>${ph.cumulative}</b></td>`).join('')}
-                        </tr>
-                    `).join('')}
-                `;
-            },
+      // Per round for sets/tricks
+      let gameSets = 0, gameTricks = 0;
+      const pg = playerGames[name];
+      rounds.forEach(rd => {
+        const prd = rd.scores.find(x => x.name === name);
+        if (!prd) return;
+        if (!prd.made) gameSets++;
+        gameTricks += prd.tricks;
+        // Hand streak
+        if (prd.made) {
+          pg.handWinStreak++; pg.handLoseStreak = 0;
+          pg.bestHandWin = Math.max(pg.bestHandWin, pg.handWinStreak);
+        } else {
+          pg.handLoseStreak++; pg.handWinStreak = 0;
+          pg.bestHandLose = Math.max(pg.bestHandLose, pg.handLoseStreak);
+        }
+      });
 
-            // --- Settings & Sync ---
+      s.totalSets += gameSets;
+      s.totalTricks += gameTricks;
+      s.mostSetsOneGame = Math.max(s.mostSetsOneGame, gameSets);
+      s.leastSetsOneGame = Math.min(s.leastSetsOneGame, gameSets);
+      s.mostTricksOneGame = Math.max(s.mostTricksOneGame, gameTricks);
+      s.leastTricksOneGame = Math.min(s.leastTricksOneGame, gameTricks);
 
-            showSettings() {
-                UI.modalBody.innerHTML = `
-                    <h2>Settings</h2>
-                    <label>App Role:</label>
-                    <select id="roleSelect" onchange="app.updateRole(this.value)">
-                        <option value="Viewer" ${STATE.role === 'Viewer' ? 'selected' : ''}>Viewer</option>
-                        <option value="Scorekeeper" ${STATE.role === 'Scorekeeper' ? 'selected' : ''}>Scorekeeper</option>
-                        <option value="Admin" ${STATE.role === 'Admin' ? 'selected' : ''}>Admin</option>
-                    </select>
-                    
-                    <label>Sync URL:</label>
-                    <input type="text" id="syncUrl" value="${STATE.cloudUrl}">
-                    
-                    <div class="qr-container">
-                        <div id="qrcode" class="qr-placeholder"></div>
-                        <p>Share App</p>
-                    </div>
+      // Game win/lose streak (based on T-points rank: 1st = win)
+      const rank = Object.values(tPoints).filter(v => v > tp).length; // 0 = 1st
+      if (rank === 0) {
+        s._curWinGames++; s._curLoseGames = 0;
+        s.longestWinStreakGames = Math.max(s.longestWinStreakGames, s._curWinGames);
+      } else if (rank === players.length - 1) {
+        s._curLoseGames++; s._curWinGames = 0;
+        s.longestLoseStreakGames = Math.max(s.longestLoseStreakGames, s._curLoseGames);
+      }
 
-                    ${STATE.isAdmin ? `
-                        <button class="btn-danger" onclick="app.clearCloud()">CLEAR CLOUD DATA</button>
-                    ` : ''}
-                    <button class="btn-gold" onclick="app.syncWithCloud()">SYNC NOW</button>
-                `;
-                UI.modal.classList.remove('hidden');
-                this.generateQRCode();
-            },
+      // Pay streaks
+      if (fin.total > 0) {
+        pg.payStreak++; pg.noPayStreak = 0;
+        pg.bestPay = Math.max(pg.bestPay, pg.payStreak);
+      } else {
+        pg.noPayStreak++; pg.payStreak = 0;
+        pg.bestNoPay = Math.max(pg.bestNoPay, pg.noPayStreak);
+      }
+    });
+  });
 
-            updateRole(val) {
-                STATE.role = val;
-                this.checkPermissions();
-                this.saveLocalData();
-                this.showSettings(); // refresh UI
-            },
+  // Finalize derived
+  Object.keys(stats).forEach(name => {
+    const s = stats[name];
+    const pg = playerGames[name];
+    const n = s._gameScores.length;
+    s.avgGamePoints = n ? parseFloat((s.totalGamePoints / n).toFixed(1)) : 0;
+    if (s.leastSetsOneGame === Infinity) s.leastSetsOneGame = 0;
+    if (s.leastTricksOneGame === Infinity) s.leastTricksOneGame = 0;
+    if (s.lowestScore === Infinity) s.lowestScore = 0;
+    if (s.highestScore === -Infinity) s.highestScore = 0;
+    if (pg) {
+      s.longestWinStreakHands = pg.bestHandWin;
+      s.longestLoseStreakHands = pg.bestHandLose;
+      s.longestStreakNoPay = pg.bestNoPay;
+      s.longestStreakPay = pg.bestPay;
+    }
+  });
 
-            generateQRCode() {
-                new QRCode(document.getElementById("qrcode"), {
-                    text: "https://jamesrwatt.github.io/Up-and-Down-the-River-Tournament-Claude-One-Shot-/",
-                    width: 128,
-                    height: 128
-                }); // [cite: 40]
-            },
+  return stats;
+}
 
-            async syncWithCloud() {
-                if (STATE.role === 'Scorekeeper') return alert("Scorekeepers operate on local cache only."); // [cite: 8]
-                alert("Attempting sync with Google Apps Script...");
-                // Fetch/Push logic to STATE.cloudUrl goes here [cite: 32, 36]
-            },
+// ── STAT TABLE ROWS ──────────────────────────────────────────
+const STAT_ROWS = [
+  { section:'POINTS DISTRIBUTION' },
+  { key:'totalTournamentPoints', label:'Total Tournament Points', fmt:'num' },
+  { key:'tp5', label:'Games Earning 5 T-Points', fmt:'num' },
+  { key:'tp4', label:'Games Earning 4 T-Points', fmt:'num' },
+  { key:'tp3', label:'Games Earning 3 T-Points', fmt:'num' },
+  { key:'tp2', label:'Games Earning 2 T-Points', fmt:'num' },
+  { key:'tp1', label:'Games Earning 1 T-Point', fmt:'num' },
+  { section:'FINANCIALS' },
+  { key:'moneyLosses', label:'Money From Losses', fmt:'money' },
+  { key:'moneyPenalties', label:'Money From Penalties', fmt:'money' },
+  { key:'totalPot', label:'Total Money in Pot', fmt:'money' },
+  { key:'mostMoneyOneGame', label:'Most Money Paid One Game', fmt:'money' },
+  { section:'GENERAL SCORING' },
+  { key:'avgGamePoints', label:'Average Game Points', fmt:'dec' },
+  { key:'totalGamePoints', label:'Total Game Points', fmt:'num' },
+  { key:'totalSets', label:'Total Number of Sets', fmt:'num' },
+  { key:'totalTricks', label:'Total Number of Tricks', fmt:'num' },
+  { section:'GAME RECORDS' },
+  { key:'mostSetsOneGame', label:'Most Sets in One Game', fmt:'num' },
+  { key:'leastSetsOneGame', label:'Least Sets in One Game', fmt:'num' },
+  { key:'mostTricksOneGame', label:'Most Tricks in One Game', fmt:'num' },
+  { key:'leastTricksOneGame', label:'Least Tricks in One Game', fmt:'num' },
+  { key:'lowestScore', label:'Lowest Score Ever', fmt:'num' },
+  { key:'highestScore', label:'Highest Score Ever', fmt:'num' },
+  { section:'STREAKS' },
+  { key:'longestWinStreakGames', label:'Longest Winning Streak (Games)', fmt:'num' },
+  { key:'longestLoseStreakGames', label:'Longest Losing Streak (Games)', fmt:'num' },
+  { key:'longestWinStreakHands', label:'Longest Winning Streak (Hands)', fmt:'num' },
+  { key:'longestLoseStreakHands', label:'Longest Losing Streak (Hands)', fmt:'num' },
+  { key:'longestStreakNoPay', label:'Longest Streak Without Paying', fmt:'num' },
+  { key:'longestStreakPay', label:'Longest Streak With Paying', fmt:'num' },
+];
 
-            resumeGame() {
-                if (!STATE.activeGame) return;
-                UI.home.classList.add('hidden');
-                UI.game.classList.remove('hidden');
-                this.renderGame();
-            },
+function formatStat(val, fmt) {
+  if (val === null || val === undefined) return '—';
+  if (fmt === 'money') return `$${(+val).toFixed(2)}`;
+  if (fmt === 'dec') return (+val).toFixed(1);
+  return String(val);
+}
 
-            saveAndExit() {
-                this.saveLocalData();
-                location.reload();
-            },
+function renderStatsTable(players, statsObj, tableEl, playerRowEl, bodyEl, emptyEl) {
+  if (!players || players.length === 0) {
+    tableEl.style.display = 'none';
+    emptyEl.style.display = 'block';
+    return;
+  }
+  emptyEl.style.display = 'none';
+  tableEl.style.display = '';
 
-            closeModal() {
-                UI.modal.classList.add('hidden');
-            }
-        };
+  // Header row
+  playerRowEl.innerHTML = `<th>Statistic</th>` + players.map(p => `<th>${p}</th>`).join('');
 
-        app.init();
-    </script>
+  // Body rows
+  let html = '';
+  STAT_ROWS.forEach(row => {
+    if (row.section) {
+      html += `<tr class="stats-section-row"><td colspan="${players.length + 1}">${row.section}</td></tr>`;
+    } else {
+      const cells = players.map(p => {
+        const s = statsObj[p];
+        const val = s ? formatStat(s[row.key], row.fmt) : '—';
+        const isMoney = row.fmt === 'money';
+        const cls = isMoney ? 'mono money-value' : 'mono';
+        return `<td class="${cls}">${val}</td>`;
+      }).join('');
+      html += `<tr><td>${row.label}</td>${cells}</tr>`;
+    }
+  });
+  bodyEl.innerHTML = html;
+}
+
+// ── RENDER HOME ──────────────────────────────────────────────
+function renderHome() {
+  const games = currentTournament.games || [];
+  const tid = currentTournament.id || '—';
+  UI['tournament-id-display'].textContent = tid;
+  UI['tournament-game-display'].textContent = `${games.length} / ${MAX_TOURNAMENT_GAMES}`;
+
+  // Progress pips
+  const river = currentGame ? buildRiver(currentGame.players.length) : buildRiver(5);
+  const totalR = river.length;
+  let pipsHtml = '';
+  for (let i = 0; i < MAX_TOURNAMENT_GAMES; i++) {
+    const done = i < games.length;
+    const cls = done ? 'done' : (i === games.length && currentGame ? 'current' : '');
+    pipsHtml += `<div class="progress-pip ${cls}"></div>`;
+  }
+  UI['home-progress'].innerHTML = pipsHtml;
+
+  // Resume btn
+  UI['btn-resume'].style.display = currentGame ? 'inline-flex' : 'none';
+  UI['btn-finalize-tournament'].style.display = IS_SCOREKEEPER && games.length > 0 ? 'inline-flex' : 'none';
+
+  // Stats
+  const stats = calcStats(games, 'tournament');
+  const players = [...new Set(games.flatMap(g => g.players || []))];
+
+  renderStatsTable(
+    players, stats,
+    UI['standings-table'], UI['standings-player-row'], UI['standings-body'], UI['standings-empty']
+  );
+}
+
+// ── RENDER LEADERBOARD ───────────────────────────────────────
+let lbFilter = 'all';
+function renderLeaderboard() {
+  const games = allTime.games || [];
+  // Filter chips = all + each tournament
+  const tournaments = [...new Set(games.map(g=>g.tournamentId||'?'))];
+  let chipHtml = `<button class="lb-filter-chip ${lbFilter==='all'?'active':''}" data-f="all">All Time</button>`;
+  tournaments.forEach(t => {
+    chipHtml += `<button class="lb-filter-chip ${lbFilter===t?'active':''}" data-f="${t}">${t}</button>`;
+  });
+  UI['lb-filter-row'].innerHTML = chipHtml;
+  UI['lb-filter-row'].querySelectorAll('.lb-filter-chip').forEach(btn => {
+    btn.addEventListener('click', () => { lbFilter = btn.dataset.f; renderLeaderboard(); });
+  });
+
+  const filtered = lbFilter === 'all' ? games : games.filter(g => g.tournamentId === lbFilter);
+  const stats = calcStats(filtered, 'allTime');
+  const players = [...new Set(filtered.flatMap(g => g.players || []))];
+
+  renderStatsTable(
+    players, stats,
+    UI['lb-table'], UI['lb-player-row'], UI['lb-body'], UI['lb-empty']
+  );
+}
+
+// ── TRUMP DISPLAY ────────────────────────────────────────────
+const TRUMP_SYMBOLS = { Hearts:'♥', Clubs:'♣', Diamonds:'♦', Spades:'♠', 'No Trump':'NT' };
+const TRUMP_CLASSES = { Hearts:'trump-hearts', Clubs:'trump-clubs', Diamonds:'trump-diamonds', Spades:'trump-spades', 'No Trump':'trump-notrump' };
+
+function renderTrumpBadge(trump) {
+  const sym = TRUMP_SYMBOLS[trump] || trump;
+  const cls = TRUMP_CLASSES[trump] || '';
+  UI['trump-badge'].className = `trump-badge ${cls}`;
+  UI['trump-badge'].textContent = `${sym} ${trump}`;
+}
+
+// ── GAME RENDERING ───────────────────────────────────────────
+function renderGameScreen() {
+  if (!currentGame) return;
+  const g = currentGame;
+  const roundInfo = g.roundList[g.currentRoundIndex];
+  if (!roundInfo) { finalizeGame(); return; }
+
+  UI['round-num-label'].textContent = `Round ${roundInfo.roundNum}`;
+  UI['round-cards-label'].textContent = `${roundInfo.cards} Card${roundInfo.cards > 1 ? 's' : ''}`;
+  renderTrumpBadge(roundInfo.trump);
+
+  // Dealer rotates each round
+  const dealerIdx = (g.startingDealerIdx + g.currentRoundIndex) % g.players.length;
+  UI['dealer-name-label'].textContent = g.players[dealerIdx];
+
+  // Phase
+  UI['entry-phase-label'].textContent = g.phase === 'bid' ? 'BIDDING' : 'TRICKS';
+
+  renderEntryGrid();
+  renderRoundsHistory();
+}
+
+function renderEntryGrid() {
+  const g = currentGame;
+  const roundInfo = g.roundList[g.currentRoundIndex];
+  let html = '';
+  g.players.forEach((name, i) => {
+    const val = g.phase === 'bid' ? (g.currentBids[i] ?? '') : (g.currentTricks[i] ?? '');
+    const hint = getEntryHint(i);
+    html += `
+      <div class="entry-player-row">
+        <div class="entry-player-name">${name}</div>
+        <input type="number" class="entry-input" id="entry-input-${i}" min="0" max="${roundInfo.cards}" value="${val}" placeholder="—">
+        <div class="entry-hint" id="entry-hint-${i}">${hint}</div>
+      </div>`;
+  });
+  UI['entry-grid'].innerHTML = html;
+
+  // Attach listeners
+  g.players.forEach((_, i) => {
+    const inp = document.getElementById(`entry-input-${i}`);
+    inp.addEventListener('input', () => onEntryChange(i, inp.value));
+    inp.addEventListener('focus', () => inp.select());
+  });
+
+  // Focus first
+  const first = document.getElementById('entry-input-0');
+  if (first) setTimeout(() => first.focus(), 100);
+
+  updateEntryTotals();
+}
+
+function getEntryHint(idx) {
+  const g = currentGame;
+  if (g.phase === 'bid') {
+    if (g.currentBids[idx] !== undefined && g.currentBids[idx] !== '') {
+      return `Bid: ${g.currentBids[idx]}`;
+    }
+    return '';
+  } else {
+    const bid = g.currentBids[idx];
+    const tricks = g.currentTricks[idx];
+    if (tricks !== undefined && tricks !== '') {
+      const made = +tricks === +bid;
+      return made ? `✓ Made ${bid}` : `✗ Set (bid ${bid})`;
+    }
+    return `Bid: ${bid}`;
+  }
+}
+
+function onEntryChange(idx, val) {
+  const g = currentGame;
+  const parsed = val === '' ? undefined : Math.max(0, +val);
+  if (g.phase === 'bid') g.currentBids[idx] = parsed;
+  else g.currentTricks[idx] = parsed;
+
+  // Update hint
+  const hintEl = document.getElementById(`entry-hint-${idx}`);
+  if (hintEl) {
+    const hint = getEntryHint(idx);
+    hintEl.textContent = hint;
+    if (g.phase === 'tricks') {
+      hintEl.className = 'entry-hint' + (+g.currentTricks[idx] === +g.currentBids[idx] ? ' ok' : ' warn');
+    }
+  }
+  updateEntryTotals();
+}
+
+function updateEntryTotals() {
+  const g = currentGame;
+  const roundInfo = g.roundList[g.currentRoundIndex];
+  const cards = roundInfo.cards;
+
+  if (g.phase === 'bid') {
+    const bids = g.currentBids.filter(b => b !== undefined && b !== '');
+    const total = bids.reduce((a, b) => a + (+b), 0);
+    const allFilled = bids.length === g.players.length;
+    const forbidden = total === cards;
+    const badge = UI['entry-total-badge'];
+    badge.textContent = `Bids: ${total} / ${cards}`;
+    badge.className = 'entry-total-badge' + (!allFilled ? '' : forbidden ? ' invalid' : ' valid');
+
+    // Mark last input forbidden if it would equal cards
+    const lastInput = document.getElementById(`entry-input-${g.players.length - 1}`);
+    if (lastInput) {
+      const prevTotal = bids.slice(0, -1).reduce((a,b)=>a+(+b),0);
+      lastInput.className = 'entry-input' + (allFilled && forbidden ? ' forbidden' : '');
+    }
+    UI['btn-submit-entry'].disabled = !allFilled || forbidden;
+  } else {
+    const tricks = g.currentTricks.filter(t => t !== undefined && t !== '');
+    const total = tricks.reduce((a, b) => a + (+b), 0);
+    const allFilled = tricks.length === g.players.length;
+    const valid = total === cards;
+    const badge = UI['entry-total-badge'];
+    badge.textContent = `Tricks: ${total} / ${cards}`;
+    badge.className = 'entry-total-badge' + (!allFilled ? '' : valid ? ' valid' : ' invalid');
+    UI['btn-submit-entry'].disabled = !allFilled || !valid;
+  }
+}
+
+function renderRoundsHistory() {
+  const g = currentGame;
+  // Header
+  let headHtml = `<th>Rnd</th>`;
+  g.players.forEach(p => headHtml += `<th colspan="2">${p}</th>`);
+  headHtml += `<th>Trump</th>`;
+  UI['rounds-header-row'].innerHTML = headHtml;
+
+  // Sub-header
+  let subHtml = `<tr class="round-row-header"><td></td>`;
+  g.players.forEach(() => subHtml += `<td>Bid</td><td>Score</td>`);
+  subHtml += `<td></td></tr>`;
+
+  // Rounds (newest first)
+  let bodyHtml = subHtml;
+  const completed = [...g.completedRounds].reverse();
+  completed.forEach(rd => {
+    const sym = TRUMP_SYMBOLS[rd.trump] || rd.trump;
+    let row = `<tr><td>${rd.roundNum}</td>`;
+    g.players.forEach(name => {
+      const s = rd.scores.find(x => x.name === name) || {};
+      const cls = s.made ? 'made' : 'missed';
+      row += `<td>${s.bid ?? '—'}</td><td class="score-cell ${cls}">${s.score ?? '—'}</td>`;
+    });
+    row += `<td>${sym}</td></tr>`;
+    bodyHtml += row;
+  });
+
+  // Running totals
+  if (g.completedRounds.length > 0) {
+    const totals = calcGameScore(g.completedRounds, g.players);
+    let trow = `<tr class="round-total-row"><td>Tot</td>`;
+    g.players.forEach(p => trow += `<td></td><td>${totals[p] ?? 0}</td>`);
+    trow += `<td></td></tr>`;
+    bodyHtml += trow;
+  }
+
+  UI['rounds-body'].innerHTML = bodyHtml;
+}
+
+// ── SUBMIT ENTRY ─────────────────────────────────────────────
+function submitEntry() {
+  const g = currentGame;
+  if (g.phase === 'bid') {
+    g.phase = 'tricks';
+    renderGameScreen();
+  } else {
+    commitRound();
+  }
+}
+
+function commitRound() {
+  const g = currentGame;
+  const roundInfo = g.roundList[g.currentRoundIndex];
+  const playerData = g.players.map((name, i) => ({
+    name, bid: +g.currentBids[i], tricks: +g.currentTricks[i]
+  }));
+  const scored = scoreRound(playerData);
+  g.completedRounds.push({ ...roundInfo, scores: scored });
+
+  // Reset for next
+  g.currentRoundIndex++;
+  g.currentBids = new Array(g.players.length).fill(undefined);
+  g.currentTricks = new Array(g.players.length).fill(undefined);
+  g.phase = 'bid';
+  saveLocal();
+
+  if (g.currentRoundIndex >= g.roundList.length) {
+    finalizeGame();
+  } else {
+    renderGameScreen();
+  }
+}
+
+// ── FINALIZE GAME ────────────────────────────────────────────
+function finalizeGame() {
+  const g = currentGame;
+  const totals = calcGameScore(g.completedRounds, g.players);
+  const threshold = calcThreshold(g.players.length, g.maxCards);
+  const financials = calcFinancials(totals, threshold);
+  const tPoints = calcTournamentPoints(totals, g.players.length);
+
+  const gameRecord = {
+    id: g.id,
+    tournamentId: currentTournament.id,
+    gameNum: (currentTournament.games || []).length + 1,
+    date: new Date().toISOString(),
+    players: g.players,
+    maxCards: g.maxCards,
+    rounds: g.completedRounds,
+    totals,
+    financials,
+    tPoints,
+    threshold
+  };
+
+  // Add to allTime
+  if (!allTime.games) allTime.games = [];
+  allTime.games.push(gameRecord);
+
+  // Update currentTournament
+  if (!currentTournament.games) currentTournament.games = [];
+  currentTournament.games.push(gameRecord);
+
+  currentGame = null;
+  saveLocal();
+
+  // Push to cloud if admin
+  if (IS_ADMIN) pushToCloud();
+
+  showToast('Game finalized! 🃏', 'success');
+  showScreen('home');
+  renderHome();
+}
+
+// ── EDIT ROUND ───────────────────────────────────────────────
+function openEditRound() {
+  const g = currentGame;
+  if (!g || g.completedRounds.length === 0) { showToast('No rounds to edit yet.'); return; }
+
+  let html = '<div class="edit-round-list">';
+  g.completedRounds.forEach((rd, idx) => {
+    html += `<div class="edit-round-item" data-idx="${idx}">
+      <span class="edit-round-num">#${rd.roundNum}</span>
+      <span class="edit-round-info">${rd.cards} cards | ${rd.trump} | ${rd.scores.map(s=>s.name+':'+s.bid+'/'+s.tricks).join(', ')}</span>
+    </div>`;
+  });
+  html += '</div><div id="edit-form"></div>';
+  UI['edit-round-body'].innerHTML = html;
+
+  let selectedIdx = null;
+  UI['edit-round-body'].querySelectorAll('.edit-round-item').forEach(item => {
+    item.addEventListener('click', () => {
+      UI['edit-round-body'].querySelectorAll('.edit-round-item').forEach(x=>x.classList.remove('selected'));
+      item.classList.add('selected');
+      selectedIdx = +item.dataset.idx;
+      renderEditForm(selectedIdx);
+    });
+  });
+
+  UI['btn-save-edit'].onclick = () => {
+    if (selectedIdx === null) { showToast('Select a round first.'); return; }
+    saveEditedRound(selectedIdx);
+  };
+
+  openModal('modal-edit-round');
+}
+
+function renderEditForm(idx) {
+  const g = currentGame;
+  const rd = g.completedRounds[idx];
+  let html = `<div style="margin-top:12px"><div class="settings-label">Edit Round ${rd.roundNum} (${rd.cards} cards, ${rd.trump})</div>`;
+  html += `<div class="entry-grid" style="margin-top:8px">`;
+  rd.scores.forEach((s, i) => {
+    html += `<div class="entry-player-row">
+      <div class="entry-player-name">${s.name}</div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <label style="font-size:.75rem;color:var(--muted)">Bid</label>
+        <input type="number" class="entry-input" id="edit-bid-${i}" value="${s.bid}" min="0" max="${rd.cards}" style="width:50px">
+        <label style="font-size:.75rem;color:var(--muted)">Tricks</label>
+        <input type="number" class="entry-input" id="edit-tricks-${i}" value="${s.tricks}" min="0" max="${rd.cards}" style="width:50px">
+      </div>
+      <div class="entry-hint" id="edit-hint-${i}">${s.made?'✓ Made':'✗ Set'}</div>
+    </div>`;
+  });
+  html += '</div></div>';
+  document.getElementById('edit-form').innerHTML = html;
+}
+
+function saveEditedRound(idx) {
+  const g = currentGame;
+  const rd = g.completedRounds[idx];
+  const playerData = rd.scores.map((s, i) => ({
+    name: s.name,
+    bid: +(document.getElementById(`edit-bid-${i}`).value),
+    tricks: +(document.getElementById(`edit-tricks-${i}`).value)
+  }));
+  const totalTricks = playerData.reduce((a,b)=>a+b.tricks,0);
+  if (totalTricks !== rd.cards) { showToast(`Tricks must sum to ${rd.cards}.`, 'error'); return; }
+  const scored = scoreRound(playerData);
+  g.completedRounds[idx] = { ...rd, scores: scored };
+  saveLocal();
+  closeModal('modal-edit-round');
+  renderGameScreen();
+  showToast('Round updated ✓', 'success');
+}
+
+// ── CLOUD SYNC ───────────────────────────────────────────────
+async function pullFromCloud() {
+  if (!GAS_URL) return;
+  try {
+    setSyncStatus('pending', 'Syncing…');
+    const res = await fetch(GAS_URL + '?action=getData', { method: 'GET' });
+    const json = await res.json();
+    if (json.allTime) allTime = json.allTime;
+    if (json.currentTournament) currentTournament = json.currentTournament;
+    saveLocal();
+    renderHome();
+    setSyncStatus('synced', 'Cloud');
+    showToast('Synced from cloud ✓', 'success');
+  } catch(e) {
+    setSyncStatus('error', 'Error');
+    showToast('Cloud sync failed.', 'error');
+  }
+}
+
+async function pushToCloud() {
+  if (!IS_ADMIN || !GAS_URL) return;
+  try {
+    setSyncStatus('pending', 'Pushing…');
+    await fetch(GAS_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'saveData', allTime, currentTournament })
+    });
+    setSyncStatus('synced', 'Cloud');
+    showToast('Pushed to cloud ✓', 'success');
+  } catch(e) {
+    setSyncStatus('error', 'Error');
+    showToast('Cloud push failed.', 'error');
+  }
+}
+
+function setSyncStatus(state, label) {
+  UI['sync-dot'].className = 'sync-dot ' + state;
+  UI['sync-label'].textContent = label;
+}
+
+// ── LOCAL STORAGE ────────────────────────────────────────────
+const LS_KEYS = { allTime:'river_allTime', tourney:'river_tournament', game:'river_game', settings:'river_settings' };
+
+function saveLocal() {
+  try {
+    localStorage.setItem(LS_KEYS.allTime, JSON.stringify(allTime));
+    localStorage.setItem(LS_KEYS.tourney, JSON.stringify(currentTournament));
+    if (currentGame) localStorage.setItem(LS_KEYS.game, JSON.stringify(currentGame));
+    else localStorage.removeItem(LS_KEYS.game);
+  } catch(e) { console.warn('localStorage write failed', e); }
+}
+
+function loadLocal() {
+  try {
+    const at = localStorage.getItem(LS_KEYS.allTime);
+    if (at) allTime = JSON.parse(at);
+    const ct = localStorage.getItem(LS_KEYS.tourney);
+    if (ct) currentTournament = JSON.parse(ct);
+    const cg = localStorage.getItem(LS_KEYS.game);
+    if (cg) currentGame = JSON.parse(cg);
+    const s = localStorage.getItem(LS_KEYS.settings);
+    if (s) {
+      const obj = JSON.parse(s);
+      if (obj.gasUrl) GAS_URL = obj.gasUrl;
+      if (obj.role) localStorage.setItem('role', obj.role);
+    }
+  } catch(e) { console.warn('localStorage read failed', e); }
+}
+
+// ── TOURNAMENT ID ────────────────────────────────────────────
+function newTournamentId() {
+  const d = new Date();
+  return `T${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function ensureTournament() {
+  if (!currentTournament.id) {
+    currentTournament = { id: newTournamentId(), games: [], players: [] };
+    saveLocal();
+  }
+}
+
+// ── NEW GAME MODAL ───────────────────────────────────────────
+function openNewGame() {
+  // Check if 20+ games played
+  const games = currentTournament.games || [];
+  if (games.length >= MAX_TOURNAMENT_GAMES) {
+    showConfirm(
+      'Finalize Tournament?',
+      `You've played ${games.length} games. Finalize the current tournament and start a new one?`,
+      () => { finalizeTournament(); openNewGame(); }
+    );
+    return;
+  }
+
+  // Default players
+  let defaultPlayers = DEFAULT_PLAYERS;
+  if (games.length > 0) {
+    defaultPlayers = games[games.length-1].players.join(', ');
+  }
+  UI['new-game-players'].value = defaultPlayers;
+  updatePlayerCountHint();
+  updateRiverPreview();
+  openModal('modal-new-game');
+}
+
+function parsePlayers(text) {
+  return text.split(/[\n,]+/).map(s=>s.trim()).filter(Boolean);
+}
+
+function updatePlayerCountHint() {
+  const players = parsePlayers(UI['new-game-players'].value);
+  const count = players.length;
+  const valid = count >= 2 && count <= 10;
+  UI['player-count-hint'].textContent = `${count} player${count!==1?'s':''} — ${valid ? '✓ Valid' : '⚠ Need 2–10 players'}`;
+  UI['player-count-hint'].style.color = valid ? 'var(--green2)' : 'var(--red)';
+  return valid ? players : null;
+}
+
+function updateRiverPreview() {
+  const players = parsePlayers(UI['new-game-players'].value);
+  if (players.length < 2) { UI['river-preview'].innerHTML = 'Enter valid players.'; return; }
+  const max = Math.min(10, Math.floor(52 / players.length));
+  const river = buildRiver(players.length);
+  const roundList = buildRoundList(river);
+  const trumpSym = { Hearts:'♥', Clubs:'♣', Diamonds:'♦', Spades:'♠', 'No Trump':'NT' };
+  const trumpCls = { Hearts:'text-red', Clubs:'text-muted', Diamonds:'text-red', Spades:'text-muted', 'No Trump':'text-gold' };
+  UI['river-preview'].innerHTML = roundList.map(r =>
+    `<span>Rd${r.roundNum}:<b>${r.cards}</b>c <span class="${trumpCls[r.trump]||''}">${trumpSym[r.trump]||r.trump}</span></span>`
+  ).join(' &nbsp; ');
+}
+
+function startGame() {
+  const players = updatePlayerCountHint();
+  if (!players) { showToast('Invalid player count.', 'error'); return; }
+
+  ensureTournament();
+  const river = buildRiver(players.length);
+  const maxCards = Math.min(10, Math.floor(52 / players.length));
+
+  currentGame = {
+    id: Date.now().toString(36),
+    tournamentId: currentTournament.id,
+    players,
+    river,
+    maxCards,
+    roundList: buildRoundList(river),
+    completedRounds: [],
+    currentRoundIndex: 0,
+    currentBids: new Array(players.length).fill(undefined),
+    currentTricks: new Array(players.length).fill(undefined),
+    phase: 'bid',
+    startingDealerIdx: 0
+  };
+  saveLocal();
+  closeModal('modal-new-game');
+  showScreen('game');
+  renderGameScreen();
+}
+
+// ── FINALIZE TOURNAMENT ──────────────────────────────────────
+function finalizeTournament() {
+  if (!IS_SCOREKEEPER) return;
+  showConfirm('Finalize Tournament?', 'This will close the current tournament. A new one will start on next game.', () => {
+    // Archive
+    if (!allTime.tournaments) allTime.tournaments = [];
+    allTime.tournaments.push({ ...currentTournament });
+    currentTournament = { id: newTournamentId(), games: [], players: [] };
+    saveLocal();
+    if (IS_ADMIN) pushToCloud();
+    renderHome();
+    showToast('Tournament finalized!', 'success');
+  });
+}
+
+// ── CLEAR DATA ───────────────────────────────────────────────
+function clearTournament(cloud) {
+  showConfirm('Clear Tournament?', `This will erase all current tournament data${cloud?' from the cloud':'locally'}. Are you sure?`, () => {
+    currentTournament = { id: newTournamentId(), games: [], players: [] };
+    // Also remove from allTime
+    if (cloud && IS_ADMIN) {
+      allTime.games = (allTime.games||[]).filter(g=>g.tournamentId!==currentTournament.id);
+      pushToCloud();
+    }
+    saveLocal();
+    renderHome();
+    showToast('Tournament cleared.', 'success');
+  });
+}
+
+function clearLeaderboard(cloud) {
+  showConfirm('Clear Leaderboard?', `This will erase ALL all-time data${cloud?' from the cloud':'locally'}. This cannot be undone!`, () => {
+    allTime = { games:[] };
+    currentTournament = { id: newTournamentId(), games:[], players:[] };
+    if (cloud && IS_ADMIN) pushToCloud();
+    saveLocal();
+    renderHome();
+    showToast('Leaderboard cleared.', 'success');
+  });
+}
+
+// ── QR CODE ──────────────────────────────────────────────────
+function generateQRCode() {
+  const container = UI['qr-container'];
+  container.innerHTML = '';
+  // Use Google Charts API for QR
+  const url = encodeURIComponent(APP_URL);
+  const img = document.createElement('img');
+  img.src = `https://chart.googleapis.com/chart?chs=160x160&cht=qr&chl=${url}&choe=UTF-8`;
+  img.alt = 'QR Code';
+  img.style.cssText = 'width:160px;height:160px;border:3px solid var(--gold);border-radius:10px';
+  container.appendChild(img);
+}
+
+// ── SETTINGS ─────────────────────────────────────────────────
+function openSettings() {
+  const role = localStorage.getItem('role') || 'viewer';
+  UI['settings-role'].value = role;
+  UI['settings-gas-url'].value = GAS_URL;
+  UI['settings-password'].value = '';
+  UI['settings-password-row'].style.display = role === 'admin' ? 'block' : 'none';
+  generateQRCode();
+  openModal('modal-settings');
+}
+
+function saveSettings() {
+  const role = UI['settings-role'].value;
+  if (role === 'admin') {
+    const pw = UI['settings-password'].value;
+    if (pw !== ADMIN_PASSWORD) { showToast('Incorrect admin password.', 'error'); return; }
+  }
+  localStorage.setItem('role', role);
+  GAS_URL = UI['settings-gas-url'].value.trim() || DEFAULT_GAS_URL;
+  localStorage.setItem(LS_KEYS.settings, JSON.stringify({ gasUrl: GAS_URL, role }));
+  checkPermissions();
+  closeModal('modal-settings');
+  showToast(`Role set to ${role}.`, 'success');
+
+  if (!IS_SCOREKEEPER && (role === 'viewer' || role === 'admin')) {
+    pullFromCloud();
+  }
+}
+
+// ── SCREENS ──────────────────────────────────────────────────
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(`screen-${name}`).classList.add('active');
+}
+
+// ── MODALS ───────────────────────────────────────────────────
+function openModal(id) {
+  document.getElementById(id).classList.add('active');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+// ── CONFIRM ──────────────────────────────────────────────────
+let _confirmCallback = null;
+function showConfirm(title, msg, onYes) {
+  UI['confirm-title'].textContent = title;
+  UI['confirm-msg'].textContent = msg;
+  _confirmCallback = onYes;
+  openModal('modal-confirm');
+}
+
+// ── TOAST ────────────────────────────────────────────────────
+let _toastTimer;
+function showToast(msg, type='') {
+  const t = UI['toast'];
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.className = '', 3000);
+}
+
+// ── EVENT BINDINGS ───────────────────────────────────────────
+function bindEvents() {
+  // Close buttons
+  document.querySelectorAll('[data-close]').forEach(btn => {
+    btn.addEventListener('click', () => closeModal(btn.dataset.close));
+  });
+  // Overlay click-away
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) closeModal(overlay.id);
+    });
+  });
+
+  // Home
+  UI['btn-new-game'].addEventListener('click', openNewGame);
+  UI['btn-resume'].addEventListener('click', () => { showScreen('game'); renderGameScreen(); });
+  UI['btn-leaderboard'].addEventListener('click', () => { renderLeaderboard(); openModal('modal-leaderboard'); });
+  UI['btn-settings'].addEventListener('click', openSettings);
+  UI['btn-finalize-tournament'].addEventListener('click', finalizeTournament);
+
+  // New game modal
+  UI['new-game-players'].addEventListener('input', () => { updatePlayerCountHint(); updateRiverPreview(); });
+  UI['btn-start-game'].addEventListener('click', startGame);
+
+  // Game screen
+  UI['btn-submit-entry'].addEventListener('click', submitEntry);
+  UI['btn-save-exit'].addEventListener('click', () => { saveLocal(); showScreen('home'); renderHome(); });
+  UI['btn-edit-round'].addEventListener('click', openEditRound);
+
+  // Settings
+  UI['settings-role'].addEventListener('change', () => {
+    UI['settings-password-row'].style.display = UI['settings-role'].value === 'admin' ? 'block' : 'none';
+  });
+  UI['btn-save-settings'].addEventListener('click', saveSettings);
+  UI['btn-push-cloud'].addEventListener('click', pushToCloud);
+  UI['btn-clear-tournament-admin'].addEventListener('click', () => clearTournament(true));
+  UI['btn-clear-leaderboard-admin'].addEventListener('click', () => clearLeaderboard(true));
+  UI['btn-clear-tournament-local'].addEventListener('click', () => clearTournament(false));
+  UI['btn-clear-leaderboard-local'].addEventListener('click', () => clearLeaderboard(false));
+
+  // Leaderboard
+  UI['btn-lb-sync'].addEventListener('click', () => { pullFromCloud(); renderLeaderboard(); });
+
+  // Confirm
+  UI['btn-confirm-yes'].addEventListener('click', () => {
+    closeModal('modal-confirm');
+    if (_confirmCallback) { _confirmCallback(); _confirmCallback = null; }
+  });
+  UI['btn-confirm-no'].addEventListener('click', () => closeModal('modal-confirm'));
+}
+
+// ── INIT ─────────────────────────────────────────────────────
+function init() {
+  cacheUI();
+  loadLocal();
+  checkPermissions();
+  bindEvents();
+
+  // Initial UI state
+  if (currentGame) {
+    UI['btn-resume'].style.display = 'inline-flex';
+  }
+
+  // Auto-pull cloud if viewer/admin
+  const role = localStorage.getItem('role') || 'viewer';
+  if (role === 'viewer' || role === 'admin') {
+    if (GAS_URL) pullFromCloud();
+  }
+
+  ensureTournament();
+  renderHome();
+  setSyncStatus('synced', role === 'viewer' || role === 'admin' ? 'Cloud' : 'Local');
+
+  // Register service worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+
+</script>
+
 </body>
 </html>

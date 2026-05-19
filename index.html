@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Up and Down the River Tournament</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        :root {
+            --primary: #2c3e50; --gold: #d4af37; --danger: #e74c3c; --bg: #1a1a1a; --text: #ecf0f1;
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 10px; }
+        .hidden { display: none !important; }
+        
+        /* UI Components */
+        .card { background: #2a2a2a; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        h1, h2 { color: var(--gold); text-align: center; margin-top: 0; }
+        button { background: var(--primary); color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 16px; margin: 5px 0; width: 100%; transition: 0.3s; }
+        button:active { transform: scale(0.98); }
+        .btn-gold { background: var(--gold); color: black; font-weight: bold; }
+        .btn-danger { background: var(--danger); }
+        
+        input, select { background: #333; color: white; border: 1px solid #444; padding: 10px; border-radius: 6px; width: 100%; margin-bottom: 10px; }
+        
+        /* Stats Table */
+        .table-container { overflow-x: auto; margin-top: 15px; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { border: 1px solid #444; padding: 8px; text-align: center; }
+        th { background: #222; position: sticky; top: 0; }
+        tr:nth-child(even) { background: #242424; }
+
+        /* Game UI */
+        .entry-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); gap: 10px; margin-bottom: 15px; }
+        .player-input-group { text-align: center; }
+        .round-info { background: #333; padding: 10px; border-radius: 8px; text-align: center; font-weight: bold; margin-bottom: 10px; }
+        
+        /* Modal */
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; overflow-y: auto; padding: 20px; box-sizing: border-box; }
+        
+        .qr-container { text-align: center; margin: 20px 0; }
+        .qr-placeholder { background: white; padding: 10px; display: inline-block; }
+    </style>
+</head>
+<body>
+
+    <div id="homeScreen">
+        <img src="icon.png" alt="Logo" style="width: 80px; display: block; margin: 0 auto 10px;">
+        <h1>River Tournament</h1>
+        
+        <div id="activeTournamentSection" class="card">
+            <h2>Current Tournament Standings</h2>
+            <div class="table-container">
+                <table id="mainStatsTable"></table>
+            </div>
+        </div>
+
+        <div class="card">
+            <button id="resumeBtn" class="btn-gold hidden" onclick="app.resumeGame()">RESUME GAME</button>
+            <button onclick="app.showStartGameModal()">START NEW GAME</button>
+            <button onclick="app.showLeaderboard()">ALL-TIME LEADERBOARD</button>
+            <button onclick="app.showSettings()">SETTINGS & SYNC</button>
+        </div>
+    </div>
+
+    <div id="gameScreen" class="hidden">
+        <div class="card">
+            <div id="roundIndicator" class="round-info"></div>
+            <div id="trumpIndicator" class="round-info" style="background: var(--gold); color: black;"></div>
+            
+            <div id="bidEntrySection">
+                <h3>Enter Bids</h3>
+                <div id="bidInputs" class="entry-grid"></div>
+                <button onclick="app.submitBids()">Submit Bids</button>
+            </div>
+
+            <div id="trickEntrySection" class="hidden">
+                <h3>Enter Tricks Won</h3>
+                <div id="trickInputs" class="entry-grid"></div>
+                <button onclick="app.submitTricks()">Submit Round</button>
+            </div>
+            
+            <button class="btn-danger" onclick="app.saveAndExit()">Save & Exit</button>
+        </div>
+
+        <div class="card">
+            <h3>Round History</h3>
+            <div class="table-container">
+                <table id="roundHistoryTable"></table>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalOverlay" class="modal hidden">
+        <div id="modalContent"></div>
+        <button onclick="app.closeModal()" style="margin-top: 20px;">Close</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script>
+        // Global UI Cache and Variables [cite: 3, 4]
+        const UI = {
+            home: document.getElementById('homeScreen'),
+            game: document.getElementById('gameScreen'),
+            modal: document.getElementById('modalOverlay'),
+            modalBody: document.getElementById('modalContent'),
+            mainStats: document.getElementById('mainStatsTable'),
+            roundHistory: document.getElementById('roundHistoryTable'),
+            resumeBtn: document.getElementById('resumeBtn')
+        };
+
+        let STATE = {
+            currentTournament: [], // Array of game objects [cite: 32]
+            allTime: [],           // Historical data [cite: 32]
+            activeGame: null,
+            role: 'Viewer',
+            isAdmin: false,
+            isScorekeeper: false,
+            cloudUrl: "https://script.google.com/macros/s/AKfycbzjlG_IqO5bA-IfX5IjzbXv5k-SY3mxYn_oh1ESaasRiLwM3hmOXfo6xV3OtrdbnRZO8Q/exec"
+        };
+
+        const app = {
+            init() {
+                this.loadLocalData();
+                this.checkPermissions();
+                this.renderMainStats();
+                if (STATE.activeGame) UI.resumeBtn.classList.remove('hidden');
+                
+                // Register Service Worker
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.register('sw.js');
+                }
+            },
+
+            checkPermissions() {
+                // Role handling [cite: 6]
+                STATE.isAdmin = STATE.role === 'Admin';
+                STATE.isScorekeeper = STATE.role === 'Scorekeeper';
+            },
+
+            loadLocalData() {
+                const stored = localStorage.getItem('river_pwa_data');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    STATE.allTime = parsed.allTime || [];
+                    STATE.currentTournament = parsed.currentTournament || [];
+                    STATE.activeGame = parsed.activeGame || null;
+                    STATE.role = parsed.role || 'Viewer';
+                }
+            },
+
+            saveLocalData() {
+                localStorage.setItem('river_pwa_data', JSON.stringify({
+                    allTime: STATE.allTime,
+                    currentTournament: STATE.currentTournament,
+                    activeGame: STATE.activeGame,
+                    role: STATE.role
+                }));
+            },
+
+            // --- Game Logic ---
+            
+            buildRiver(playersCount) {
+                const maxCards = Math.min(10, Math.floor(52 / playersCount)); // [cite: 15]
+                const sequence = [];
+                for (let i = 1; i <= maxCards; i++) sequence.push(i);
+                for (let i = maxCards - 1; i >= 1; i--) sequence.push(i);
+                return sequence; // [cite: 14]
+            },
+
+            getTrump(roundIndex) {
+                const suits = ["Hearts", "Clubs", "Diamonds", "Spades"]; // [cite: 16]
+                const middleStart = 8; // Adjust based on maxCards logic
+                // Exception for middle 5 rounds 
+                // Logic simplified for various maxCards; ideally mapped to indices 8-12
+                if (roundIndex >= 8 && roundIndex <= 12) {
+                    const subIdx = roundIndex - 8;
+                    return subIdx % 2 === 0 ? "No Trump" : suits[subIdx % 4];
+                }
+                return suits[roundIndex % 4];
+            },
+
+            showStartGameModal() {
+                const lastPlayers = STATE.activeGame ? STATE.activeGame.players.map(p => p.name).join(', ') : "Mom, Georgia, Lucy, Jack, Dad"; // [cite: 42, 43]
+                UI.modalBody.innerHTML = `
+                    <h2>Start New Game</h2>
+                    <p>Enter player names (comma separated):</p>
+                    <input type="text" id="playerNamesInput" value="${lastPlayers}">
+                    <button class="btn-gold" onclick="app.startGame()">START</button>
+                `;
+                UI.modal.classList.remove('hidden');
+            },
+
+            startGame() {
+                const names = document.getElementById('playerNamesInput').value.split(',').map(n => n.trim());
+                if (names.length < 2) return alert("Need at least 2 players");
+
+                const river = this.buildRiver(names.length);
+                STATE.activeGame = {
+                    id: Date.now(),
+                    players: names.map(n => ({ name: n, score: 0, totalSets: 0, totalTricks: 0, history: [] })),
+                    river: river,
+                    currentRound: 0,
+                    bids: [],
+                    isFinalized: false,
+                    tournamentId: STATE.currentTournament.length > 0 ? STATE.currentTournament[0].tournamentId : 1
+                };
+                
+                this.closeModal();
+                this.renderGame();
+                UI.home.classList.add('hidden');
+                UI.game.classList.remove('hidden');
+                this.saveLocalData();
+            },
+
+            renderGame() {
+                const g = STATE.activeGame;
+                const cards = g.river[g.currentRound];
+                UI.roundIndicator.innerText = `Round ${g.currentRound + 1} of ${g.river.length} (${cards} Cards)`;
+                UI.trumpIndicator.innerText = `Trump: ${this.getTrump(g.currentRound)}`;
+                
+                // Render Bid Inputs
+                const bidDiv = document.getElementById('bidInputs');
+                bidDiv.innerHTML = g.players.map((p, i) => `
+                    <div class="player-input-group">
+                        <label>${p.name}</label>
+                        <input type="number" id="bid_${i}" min="0" max="${cards}" value="0">
+                    </div>
+                `).join('');
+                
+                document.getElementById('bidEntrySection').classList.remove('hidden');
+                document.getElementById('trickEntrySection').classList.add('hidden');
+                this.renderRoundHistory();
+            },
+
+            submitBids() {
+                const g = STATE.activeGame;
+                const cards = g.river[g.currentRound];
+                let totalBids = 0;
+                const bids = [];
+                
+                for(let i=0; i < g.players.length; i++) {
+                    const b = parseInt(document.getElementById(`bid_${i}`).value);
+                    bids.push(b);
+                    totalBids += b;
+                }
+
+                // Dealer Rule: Total bids != cards in round 
+                if (totalBids === cards) {
+                    return alert(`Illegal Bidding! Total bids cannot equal ${cards}. Someone must go set.`);
+                }
+
+                g.bids = bids;
+                document.getElementById('bidEntrySection').classList.add('hidden');
+                const trickDiv = document.getElementById('trickInputs');
+                trickDiv.innerHTML = g.players.map((p, i) => `
+                    <div class="player-input-group">
+                        <label>${p.name}</label>
+                        <input type="number" id="trick_${i}" min="0" max="${cards}" value="0">
+                    </div>
+                `).join('');
+                document.getElementById('trickEntrySection').classList.remove('hidden');
+            },
+
+            submitTricks() {
+                const g = STATE.activeGame;
+                const cards = g.river[g.currentRound];
+                const tricks = [];
+                let sumTricks = 0;
+
+                for(let i=0; i < g.players.length; i++) {
+                    const t = parseInt(document.getElementById(`trick_${i}`).value);
+                    tricks.push(t);
+                    sumTricks += t;
+                }
+
+                if (sumTricks !== cards) return alert(`Error: Total tricks must equal ${cards}`);
+
+                // Scoring [cite: 18, 19]
+                g.players.forEach((p, i) => {
+                    const bid = g.bids[i];
+                    const won = tricks[i];
+                    let pts = 0;
+                    if (bid === won) {
+                        pts = 10 + won;
+                    } else {
+                        pts = won;
+                        p.totalSets++;
+                    }
+                    p.score += pts;
+                    p.totalTricks += won;
+                    p.history.push({ round: g.currentRound, bid, won, pts, cumulative: p.score });
+                });
+
+                g.currentRound++;
+                if (g.currentRound >= g.river.length) {
+                    this.finalizeGame();
+                } else {
+                    this.renderGame();
+                }
+                this.saveLocalData();
+            },
+
+            finalizeGame() {
+                const g = STATE.activeGame;
+                
+                // Calc Financials [cite: 21-27]
+                const maxCards = Math.max(...g.river);
+                const threshold = (10 * (2 * maxCards - 1) - 20) - (10 * g.players.length);
+                
+                // Sort by score for ranking
+                const sorted = [...g.players].sort((a,b) => b.score - a.score);
+                const lastScore = sorted[sorted.length - 1].score;
+
+                g.players.forEach(p => {
+                    p.moneyFromLosses = (p.score === lastScore) ? 1.00 : 0; // [cite: 22]
+                    p.moneyFromPenalties = 0;
+                    if (p.score < threshold) {
+                        p.moneyFromPenalties = Math.ceil((threshold - p.score) / 10); // [cite: 26, 27]
+                    }
+                });
+
+                // Weighted T-Points [cite: 12, 13]
+                sorted.forEach((p, index) => {
+                    // Tie logic: highest shared rank
+                    const rank = sorted.findIndex(x => x.score === p.score) + 1;
+                    const tPoints = Math.max(0, g.players.length - (rank - 1));
+                    g.players.find(orig => orig.name === p.name).tPoints = tPoints;
+                });
+
+                STATE.allTime.push(JSON.parse(JSON.stringify(g))); // [cite: 33]
+                STATE.currentTournament.push(JSON.parse(JSON.stringify(g))); // [cite: 34]
+                STATE.activeGame = null;
+                
+                alert("Game Finalized! Returning to Home.");
+                this.saveLocalData();
+                location.reload();
+            },
+
+            // --- UI Rendering ---
+
+            renderMainStats() {
+                this.renderStatsTable(UI.mainStats, STATE.currentTournament);
+            },
+
+            showLeaderboard() {
+                UI.modalBody.innerHTML = `<h2>All-Time Leaderboard</h2><div class="table-container"><table id="lbTable"></table></div>`;
+                this.renderStatsTable(document.getElementById('lbTable'), STATE.allTime);
+                UI.modal.classList.remove('hidden');
+            },
+
+            renderStatsTable(tableEl, dataset) {
+                if (!dataset || dataset.length === 0) {
+                    tableEl.innerHTML = "<tr><td>No data available</td></tr>";
+                    return;
+                }
+
+                // Aggregate player stats [cite: 29, 30]
+                const players = {};
+                dataset.forEach(game => {
+                    game.players.forEach(p => {
+                        if (!players[p.name]) players[p.name] = { 
+                            name: p.name, tPoints: 0, totalScore: 0, games: 0, 
+                            losses: 0, penalties: 0, sets: 0, tricks: 0 
+                        };
+                        const s = players[p.name];
+                        s.tPoints += p.tPoints;
+                        s.totalScore += p.score;
+                        s.games++;
+                        s.losses += (p.moneyFromLosses || 0);
+                        s.penalties += (p.moneyFromPenalties || 0);
+                        s.sets += p.totalSets;
+                        s.tricks += p.totalTricks;
+                    });
+                });
+
+                const rows = Object.values(players).sort((a,b) => b.tPoints - a.tPoints);
+                
+                tableEl.innerHTML = `
+                    <tr>
+                        <th>Player</th><th>T-Points</th><th>Avg Score</th><th>Pot $</th><th>Sets</th>
+                    </tr>
+                    ${rows.map(r => `
+                        <tr>
+                            <td>${r.name}</td>
+                            <td>${r.tPoints}</td>
+                            <td>${(r.totalScore / r.games).toFixed(1)}</td>
+                            <td>$${(r.losses + r.penalties).toFixed(2)}</td>
+                            <td>${r.sets}</td>
+                        </tr>
+                    `).join('')}
+                `;
+            },
+
+            renderRoundHistory() {
+                const g = STATE.activeGame;
+                if (!g) return;
+                // Newest rounds at the top [cite: 49]
+                const history = [];
+                for(let r=g.currentRound-1; r >= 0; r--) {
+                    const row = { round: r+1, trump: this.getTrump(r), cards: g.river[r], players: [] };
+                    g.players.forEach(p => row.players.push(p.history[r]));
+                    history.push(row);
+                }
+
+                UI.roundHistory.innerHTML = `
+                    <tr><th>Rd</th><th>Trump</th>${g.players.map(p => `<th>${p.name}</th>`).join('')}</tr>
+                    ${history.map(h => `
+                        <tr>
+                            <td>${h.round}</td>
+                            <td>${h.trump}</td>
+                            ${h.players.map(ph => `<td>B:${ph.bid} W:${ph.won}<br><b>${ph.cumulative}</b></td>`).join('')}
+                        </tr>
+                    `).join('')}
+                `;
+            },
+
+            // --- Settings & Sync ---
+
+            showSettings() {
+                UI.modalBody.innerHTML = `
+                    <h2>Settings</h2>
+                    <label>App Role:</label>
+                    <select id="roleSelect" onchange="app.updateRole(this.value)">
+                        <option value="Viewer" ${STATE.role === 'Viewer' ? 'selected' : ''}>Viewer</option>
+                        <option value="Scorekeeper" ${STATE.role === 'Scorekeeper' ? 'selected' : ''}>Scorekeeper</option>
+                        <option value="Admin" ${STATE.role === 'Admin' ? 'selected' : ''}>Admin</option>
+                    </select>
+                    
+                    <label>Sync URL:</label>
+                    <input type="text" id="syncUrl" value="${STATE.cloudUrl}">
+                    
+                    <div class="qr-container">
+                        <div id="qrcode" class="qr-placeholder"></div>
+                        <p>Share App</p>
+                    </div>
+
+                    ${STATE.isAdmin ? `
+                        <button class="btn-danger" onclick="app.clearCloud()">CLEAR CLOUD DATA</button>
+                    ` : ''}
+                    <button class="btn-gold" onclick="app.syncWithCloud()">SYNC NOW</button>
+                `;
+                UI.modal.classList.remove('hidden');
+                this.generateQRCode();
+            },
+
+            updateRole(val) {
+                STATE.role = val;
+                this.checkPermissions();
+                this.saveLocalData();
+                this.showSettings(); // refresh UI
+            },
+
+            generateQRCode() {
+                new QRCode(document.getElementById("qrcode"), {
+                    text: "https://jamesrwatt.github.io/Up-and-Down-the-River-Tournament/",
+                    width: 128,
+                    height: 128
+                }); // [cite: 40]
+            },
+
+            async syncWithCloud() {
+                if (STATE.role === 'Scorekeeper') return alert("Scorekeepers operate on local cache only."); // [cite: 8]
+                alert("Attempting sync with Google Apps Script...");
+                // Fetch/Push logic to STATE.cloudUrl goes here [cite: 32, 36]
+            },
+
+            resumeGame() {
+                if (!STATE.activeGame) return;
+                UI.home.classList.add('hidden');
+                UI.game.classList.remove('hidden');
+                this.renderGame();
+            },
+
+            saveAndExit() {
+                this.saveLocalData();
+                location.reload();
+            },
+
+            closeModal() {
+                UI.modal.classList.add('hidden');
+            }
+        };
+
+        app.init();
+    </script>
+</body>
+</html>

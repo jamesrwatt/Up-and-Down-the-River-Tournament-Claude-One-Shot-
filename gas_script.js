@@ -21,7 +21,9 @@ function doGet(e) {
 
 function doPost(e) {
   try {
-    const payload = JSON.parse(e.postData.contents);
+    // Browser sends text/plain to avoid CORS preflight; body is still JSON
+    const raw = (e.postData && e.postData.contents) ? e.postData.contents : '{}';
+    const payload = JSON.parse(raw);
     const action  = payload.action || 'saveData';
     if (action === 'saveData') return respond(saveData(payload));
     return respond({ error: 'Unknown action' });

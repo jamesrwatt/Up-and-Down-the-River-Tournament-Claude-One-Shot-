@@ -1476,43 +1476,78 @@ function clearLeaderboard(cloud) {
 
 // ── QR CODE ──────────────────────────────────────────────────
 function generateQRCode() {
-  const container = UI['qr-container'];
+  const container = document.getElementById('qr-container');
+  if (!container) return;
   container.innerHTML = '';
-  // Use Google Charts API for QR
   const url = encodeURIComponent(APP_URL);
+  // Use qrserver.com — reliable free QR API, no CORS issues with <img>
   const img = document.createElement('img');
-  img.src = `https://chart.googleapis.com/chart?chs=160x160&cht=qr&chl=${url}&choe=UTF-8`;
-  img.alt = 'QR Code';
-  img.style.cssText = 'width:160px;height:160px;border:3px solid var(--gold);border-radius:10px';
+  img.src = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&margin=8&data=${url}`;
+  img.alt = 'Scan to open app';
+  img.width = 160;
+  img.height = 160;
+  img.style.cssText = 'display:block;border:3px solid var(--gold);border-radius:10px;background:#fff';
+  img.onerror = () => {
+    container.innerHTML = `<div style="width:160px;height:160px;display:flex;align-items:center;justify-content:center;border:3px solid var(--gold);border-radius:10px;color:var(--muted);font-size:.75rem;text-align:center;padding:12px">QR unavailable offline</div>`;
+  };
   container.appendChild(img);
 }
 
 // ── SETTINGS ─────────────────────────────────────────────────
 function openSettings() {
   const role = localStorage.getItem('role') || 'viewer';
-  UI['settings-role'].value = role;
-  UI['settings-gas-url'].value = GAS_URL;
-  UI['settings-password'].value = '';
-  UI['settings-password-row'].style.display = role === 'admin' ? 'block' : 'none';
+  const roleEl   = document.getElementById('settings-role');
+  const gasEl    = document.getElementById('settings-gas-url');
+  const pwEl     = document.getElementById('settings-password');
+  const pwRowEl  = document.getElementById('settings-password-row');
+  if (roleEl)  roleEl.value  = role;
+  if (gasEl)   gasEl.value   = GAS_URL || DEFAULT_GAS_URL;
+  if (pwEl)    pwEl.value    = '';
+  if (pwRowEl) pwRowEl.style.display = role === 'admin' ? 'block' : 'none';
   generateQRCode();
-  openModal('modal-settings');
+  document.getElementById('modal-settings').classList.add('active');
 }
 
 function saveSettings() {
-  const role = UI['settings-role'].value;
-  if (role === 'admin') {
-    const pw = UI['settings-password'].value;
-    if (pw !== ADMIN_PASSWORD) { showToast('Incorrect admin password.', 'error'); return; }
-  }
-  localStorage.setItem('role', role);
-  GAS_URL = UI['settings-gas-url'].value.trim() || DEFAULT_GAS_URL;
-  localStorage.setItem(LS_KEYS.settings, JSON.stringify({ gasUrl: GAS_URL, role }));
-  checkPermissions();
-  closeModal('modal-settings');
-  showToast(`Role set to ${role}.`, 'success');
+  try {
+    const roleEl  = document.getElementById('settings-role');
+    const gasEl   = document.getElementById('settings-gas-url');
+    const pwEl    = document.getElementById('settings-password');
+    if (!roleEl) { showToast('Settings elements not found.', 'error'); return; }
 
-  if (!IS_SCOREKEEPER && (role === 'viewer' || role === 'admin')) {
-    pullFromCloud();
+    const role = roleEl.value;
+
+    // Admin requires password verification
+    if (role === 'admin') {
+      const pw = pwEl ? pwEl.value : '';
+      if (pw !== ADMIN_PASSWORD) {
+        showToast('Incorrect admin password.', 'error');
+        return;
+      }
+    }
+
+    // Persist role
+    localStorage.setItem('role', role);
+
+    // Persist GAS URL
+    GAS_URL = (gasEl ? gasEl.value.trim() : '') || DEFAULT_GAS_URL;
+    localStorage.setItem(LS_KEYS.settings, JSON.stringify({ gasUrl: GAS_URL, role }));
+
+    // Update permission flags and home UI
+    checkPermissions();
+    renderHome();
+
+    // Close modal first — always
+    document.getElementById('modal-settings').classList.remove('active');
+
+    showToast(`Role set to ${role} ✓`, 'success');
+
+    // For viewer/admin: offer a manual sync via the existing sync button; 
+    // don't auto-pull here so we don't interfere with the UI state.
+    // (Users can tap ↺ Sync Cloud in the leaderboard or wait for next load.)
+  } catch (err) {
+    console.error('saveSettings error:', err);
+    showToast('Error saving settings.', 'error');
   }
 }
 
@@ -1550,8 +1585,16 @@ function showToast(msg, type='') {
 }
 
 // ── EVENT BINDINGS ───────────────────────────────────────────
+function on(id, event, fn) {
+  // Null-safe addEventListener helper — prevents one missing element
+  // from silently killing all subsequent bindings in bindEvents()
+  const el = typeof id === 'string' ? document.getElementById(id) : id;
+  if (el) el.addEventListener(event, fn);
+  else console.warn(`bindEvents: element not found → "${id}"`);
+}
+
 function bindEvents() {
-  // Close buttons
+  // Close buttons (data-close attribute)
   document.querySelectorAll('[data-close]').forEach(btn => {
     btn.addEventListener('click', () => closeModal(btn.dataset.close));
   });
@@ -1562,42 +1605,46 @@ function bindEvents() {
     });
   });
 
-  // Home
-  UI['btn-new-game'].addEventListener('click', openNewGame);
-  UI['btn-resume'].addEventListener('click', () => { showScreen('game'); renderGameScreen(); });
-  UI['btn-leaderboard'].addEventListener('click', () => { renderLeaderboard(); openModal('modal-leaderboard'); });
-  UI['btn-settings'].addEventListener('click', openSettings);
-  UI['btn-finalize-tournament'].addEventListener('click', finalizeTournament);
+  // Settings role dropdown: toggle password field visibility
+  on('settings-role', 'change', () => {
+    const v = document.getElementById('settings-role').value;
+    const row = document.getElementById('settings-password-row');
+    if (row) row.style.display = v === 'admin' ? 'block' : 'none';
+  });
+
+  // Home buttons
+  on('btn-new-game',            'click', openNewGame);
+  on('btn-resume',              'click', () => { showScreen('game'); renderGameScreen(); });
+  on('btn-leaderboard',         'click', () => { renderLeaderboard(); openModal('modal-leaderboard'); });
+  on('btn-settings',            'click', openSettings);
+  on('btn-finalize-tournament', 'click', finalizeTournament);
 
   // New game modal
-  UI['new-game-players'].addEventListener('input', () => { updatePlayerCountHint(); updateRiverPreview(); });
-  UI['btn-start-game'].addEventListener('click', startGame);
+  on('new-game-players', 'input', () => { updatePlayerCountHint(); updateRiverPreview(); });
+  on('btn-start-game',   'click', startGame);
 
   // Game screen
-  UI['btn-submit-entry'].addEventListener('click', submitEntry);
-  UI['btn-save-exit'].addEventListener('click', () => { saveLocal(); showScreen('home'); renderHome(); });
-  UI['btn-edit-round'].addEventListener('click', openEditRound);
+  on('btn-submit-entry', 'click', submitEntry);
+  on('btn-save-exit',    'click', () => { saveLocal(); showScreen('home'); renderHome(); });
+  on('btn-edit-round',   'click', openEditRound);
 
-  // Settings
-  UI['settings-role'].addEventListener('change', () => {
-    UI['settings-password-row'].style.display = UI['settings-role'].value === 'admin' ? 'block' : 'none';
-  });
-  UI['btn-save-settings'].addEventListener('click', saveSettings);
-  UI['btn-push-cloud'].addEventListener('click', pushToCloud);
-  UI['btn-clear-tournament-admin'].addEventListener('click', () => clearTournament(true));
-  UI['btn-clear-leaderboard-admin'].addEventListener('click', () => clearLeaderboard(true));
-  UI['btn-clear-tournament-local'].addEventListener('click', () => clearTournament(false));
-  UI['btn-clear-leaderboard-local'].addEventListener('click', () => clearLeaderboard(false));
+  // Settings modal
+  on('btn-save-settings',           'click', saveSettings);
+  on('btn-push-cloud',              'click', pushToCloud);
+  on('btn-clear-tournament-admin',  'click', () => clearTournament(true));
+  on('btn-clear-leaderboard-admin', 'click', () => clearLeaderboard(true));
+  on('btn-clear-tournament-local',  'click', () => clearTournament(false));
+  on('btn-clear-leaderboard-local', 'click', () => clearLeaderboard(false));
 
   // Leaderboard
-  UI['btn-lb-sync'].addEventListener('click', () => { pullFromCloud(); renderLeaderboard(); });
+  on('btn-lb-sync', 'click', () => { pullFromCloud().then(() => renderLeaderboard()); });
 
-  // Confirm
-  UI['btn-confirm-yes'].addEventListener('click', () => {
+  // Confirm dialog
+  on('btn-confirm-yes', 'click', () => {
     closeModal('modal-confirm');
     if (_confirmCallback) { _confirmCallback(); _confirmCallback = null; }
   });
-  UI['btn-confirm-no'].addEventListener('click', () => closeModal('modal-confirm'));
+  on('btn-confirm-no', 'click', () => closeModal('modal-confirm'));
 }
 
 // ── INIT ─────────────────────────────────────────────────────

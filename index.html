@@ -1359,8 +1359,7 @@ function saveEditedRound(idx) {
 
 // ── CLOUD SYNC ───────────────────────────────────────────────
 async function pullFromCloud(silent = false) {
-  if (!GAS_URL || GAS_URL === DEFAULT_GAS_URL) {
-    // No real URL configured yet — skip silently
+  if (!GAS_URL) {
     if (!silent) showToast('No cloud URL configured.', 'error');
     return;
   }
@@ -1388,7 +1387,7 @@ async function pullFromCloud(silent = false) {
 
 async function pushToCloud() {
   if (!IS_ADMIN) { showToast('Admin role required.', 'error'); return; }
-  if (!GAS_URL || GAS_URL === DEFAULT_GAS_URL) { showToast('Configure your GAS URL in Settings first.', 'error'); return; }
+  if (!GAS_URL) { showToast('No GAS URL configured.', 'error'); return; }
   try {
     setSyncStatus('pending', 'Pushing…');
     const payload = JSON.stringify({ action: 'saveData', allTime, currentTournament });
@@ -1788,7 +1787,7 @@ function init() {
 
   // Auto-pull cloud silently on load for viewer/admin (won't show error if URL unset)
   const role = localStorage.getItem('role') || 'viewer';
-  if ((role === 'viewer' || role === 'admin') && GAS_URL && GAS_URL !== DEFAULT_GAS_URL) {
+  if ((role === 'viewer' || role === 'admin') && GAS_URL) {
     pullFromCloud(true); // silent=true: no toast, no error dot on failure
   }
 

@@ -26,7 +26,7 @@
 6. [Tournament & Scoring Rules](#-tournament--scoring-rules)
 7. [Financial Tracking (The Pot)](#-financial-tracking-the-pot)
 8. [Statistics Tracked](#-statistics-tracked)
-9. [Cloud Sync Setup (Google Sheets)](#-cloud-sync-setup-google-sheets)
+9. [Cloud Sync Setup (Google Sheets)](#-cloud-sync-setup-on-google-sheets)
 10. [GitHub Pages Deployment](#-github-pages-deployment)
 11. [File Structure](#-file-structure)
 12. [Technical Details](#-technical-details)
@@ -307,7 +307,7 @@ The app tracks the following statistics for every player, for both the current t
 
 ---
 
-## ☁️ Cloud Sync Setup (Google Sheets)
+## ☁️ Cloud Sync Setup on Google Sheets
 
 Cloud sync is optional. Scorekeepers can run the entire app locally. Admins get live sync to a shared Google Sheet.
 

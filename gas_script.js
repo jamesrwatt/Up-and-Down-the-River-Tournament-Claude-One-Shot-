@@ -376,98 +376,205 @@ function blankStats(name) {
 
 // ── MANUAL REFRESH (run from Apps Script editor) ─────────────
 function manualStatsRefresh() {
-  const ss    = SpreadsheetApp.openById(SS_ID);
-  const sheet = ss.getSheetByName(SHEET_ARCHIVE);
-  if (!sheet) return { error: 'Game Archive sheet not found' };
-
-  const rows  = sheet.getDataRange().getValues();
-  if (rows.length < 2) return { error: 'No data in archive' };
-
-  // Parse archive back into game objects
-  const header    = rows[0];
-  const staticCnt = 6; // Tournament, Game#, Date, Round#, Cards, Trump
-  const playerHeaders = header.slice(staticCnt);
-  // Group every 4 columns into a player
-  const archivePlayers = [];
-  for (let i = 0; i < playerHeaders.length; i += 4) {
-    const pName = playerHeaders[i].replace(' Bid','');
-    archivePlayers.push(pName);
-  }
-
-  const gameMap = {};
-  for (let r = 1; r < rows.length; r++) {
-    const row = rows[r];
-    const [tid, gnum, date, rnum, cards, trump, ...pData] = row;
-    if (!tid) continue;
-    const key = `${tid}_${gnum}`;
-    if (!gameMap[key]) {
-      gameMap[key] = { tournamentId:String(tid), gameNum:gnum, date:String(date),
-                       players:[], rounds:[], totals:{}, financials:{}, tPoints:{} };
+  try {
+    const ss    = SpreadsheetApp.openById(SS_ID);
+    const sheet = ss.getSheetByName(SHEET_ARCHIVE);
+    if (!sheet) {
+      Logger.log('ERROR: Game Archive sheet not found. Create it first by pushing data from the app.');
+      return { error: 'Game Archive sheet not found' };
     }
-    const g = gameMap[key];
-    const scores = [];
-    archivePlayers.forEach((p, i) => {
-      const bid    = pData[i*4];
-      const tricks = pData[i*4+1];
-      const score  = pData[i*4+2];
-      const made   = pData[i*4+3] === 'Y';
-      if (bid !== '') {
-        if (!g.players.includes(p)) g.players.push(p);
-        scores.push({ name:p, bid:+bid, tricks:+tricks, score:+score, made });
+
+    const allData = sheet.getDataRange().getValues();
+    Logger.log('Archive rows found: ' + allData.length);
+
+    // Need at least header row + one data row
+    if (allData.length < 2) {
+      Logger.log('ERROR: No data rows in Game Archive (only header or empty).');
+      return { error: 'No data in archive — add games first' };
+    }
+
+    // ── Parse header to discover player columns ────────────
+    const header    = allData[0];
+    const staticCnt = 6; // Tournament, Game#, Date, Round#, Cards, Trump
+    const playerHeaders = header.slice(staticCnt).map(String);
+
+    // Build player list from header: "PlayerName Bid" → "PlayerName"
+    const archivePlayers = [];
+    for (let i = 0; i < playerHeaders.length; i += 4) {
+      const raw = playerHeaders[i] || '';
+      const pName = raw.replace(/\s*Bid\s*$/i, '').trim();
+      if (pName) archivePlayers.push(pName);
+    }
+
+    Logger.log('Players detected in archive header: ' + archivePlayers.join(', '));
+    if (archivePlayers.length === 0) {
+      Logger.log('ERROR: Could not detect player columns in header row.');
+      return { error: 'No player columns found in archive header' };
+    }
+
+    // ── Parse data rows into game map ─────────────────────
+    const gameMap = {};
+    let skippedRows = 0;
+
+    for (let r = 1; r < allData.length; r++) {
+      const row  = allData[r];
+      const tid  = String(row[0] || '').trim();
+      const gnum = row[1];
+      const date = String(row[2] || '').trim();
+      const rnum = row[3];
+      const cards = row[4];
+      const trump = String(row[5] || '').trim();
+
+      // Skip rows missing required fields
+      if (!tid || tid === '' || gnum === '' || gnum === null || gnum === undefined) {
+        skippedRows++;
+        continue;
       }
-    });
-    g.rounds.push({ roundNum:+rnum, cards:+cards, trump:String(trump), scores });
-  }
 
-  // Re-derive totals, financials, tPoints for each game
-  const games = Object.values(gameMap).sort((a,b)=>a.gameNum-b.gameNum);
-  games.forEach(game => {
-    const totals = {};
-    game.players.forEach(p => totals[p]=0);
-    game.rounds.forEach(rd => rd.scores.forEach(s=>{ if(totals[s.name]!==undefined) totals[s.name]+=s.score; }));
-    game.totals = totals;
-    const max = Math.min(10, Math.floor(52/game.players.length));
-    const threshold = (10*(2*max-1)-20)-(10*game.players.length);
-    game.threshold = threshold;
-    // Financials
-    const entries = Object.entries(totals);
-    const minScore = Math.min(...entries.map(([,v])=>v));
-    const lastP = entries.filter(([,v])=>v===minScore).map(([n])=>n);
-    const fin = {};
-    entries.forEach(([name,score]) => {
-      let losses=0, penalties=0;
-      if (lastP.includes(name) && entries.length>1) losses=1;
-      if (score<threshold) penalties=Math.ceil((threshold-score)/10);
-      fin[name]={losses,penalties,total:losses+penalties};
-    });
-    game.financials=fin;
-    // T-Points
-    const sorted=entries.slice().sort((a,b)=>b[1]-a[1]);
-    const tp={};
-    let i=0;
-    while(i<sorted.length){
-      let j=i;
-      while(j<sorted.length-1 && sorted[j][1]===sorted[j+1][1]) j++;
-      const pts=game.players.length-i;
-      for(let k=i;k<=j;k++) tp[sorted[k][0]]=pts;
-      i=j+1;
+      const key = `${tid}__${gnum}`;
+      if (!gameMap[key]) {
+        gameMap[key] = {
+          tournamentId: tid,
+          gameNum:      Number(gnum),
+          date:         date,
+          players:      [],
+          rounds:       [],
+          totals:       {},
+          financials:   {},
+          tPoints:      {}
+        };
+      }
+
+      const g      = gameMap[key];
+      const pData  = row.slice(staticCnt);
+      const scores = [];
+
+      archivePlayers.forEach((p, i) => {
+        const bid    = pData[i * 4];
+        const tricks = pData[i * 4 + 1];
+        const score  = pData[i * 4 + 2];
+        const madeRaw = pData[i * 4 + 3];
+
+        // Only include player if they have bid data for this round
+        if (bid !== '' && bid !== null && bid !== undefined) {
+          if (!g.players.includes(p)) g.players.push(p);
+          const made = (String(madeRaw).trim().toUpperCase() === 'Y');
+          scores.push({
+            name:   p,
+            bid:    Number(bid),
+            tricks: Number(tricks),
+            score:  Number(score),
+            made:   made
+          });
+        }
+      });
+
+      // Only push round if it has at least one score
+      if (scores.length > 0) {
+        g.rounds.push({
+          roundNum: Number(rnum),
+          cards:    Number(cards),
+          trump:    trump,
+          scores:   scores
+        });
+      }
     }
-    game.tPoints=tp;
-  });
 
-  // Rebuild allTime and currentTournament
-  const allTime = { games };
-  const tids = [...new Set(games.map(g=>g.tournamentId))];
-  const lastTid = tids[tids.length-1] || '';
-  const currentTournament = { id:lastTid, games:games.filter(g=>g.tournamentId===lastTid) };
+    Logger.log('Skipped rows (blank/invalid): ' + skippedRows);
 
-  setMeta('allTime', allTime);
-  setMeta('currentTournament', currentTournament);
+    const games = Object.values(gameMap)
+      .filter(g => g.players.length > 0 && g.rounds.length > 0)
+      .sort((a, b) => {
+        // Sort by tournament id first, then game number
+        if (a.tournamentId < b.tournamentId) return -1;
+        if (a.tournamentId > b.tournamentId) return  1;
+        return a.gameNum - b.gameNum;
+      });
 
-  // Write sheets
-  writeArchiveSheet(games);
-  writeTournamentSheet(currentTournament);
-  writeLeaderboardSheet(allTime);
+    Logger.log('Valid games parsed: ' + games.length);
+    if (games.length === 0) {
+      Logger.log('No valid games found. Check archive data format.');
+      return { error: 'No valid games parsed from archive' };
+    }
 
-  return { ok:true, gamesLoaded:games.length };
+    // ── Re-derive totals, financials, tPoints per game ────
+    games.forEach(game => {
+      const { players, rounds } = game;
+
+      // Totals
+      const totals = {};
+      players.forEach(p => { totals[p] = 0; });
+      rounds.forEach(rd => {
+        rd.scores.forEach(s => {
+          if (totals[s.name] !== undefined) totals[s.name] += s.score;
+        });
+      });
+      game.totals = totals;
+
+      // Threshold & financials
+      const maxCards  = Math.min(10, Math.floor(52 / players.length));
+      const threshold = (10 * (2 * maxCards - 1) - 20) - (10 * players.length);
+      game.threshold  = threshold;
+      game.maxCards   = maxCards;
+
+      const entries  = Object.entries(totals);
+      const minScore = Math.min(...entries.map(([, v]) => v));
+      const lastP    = entries.filter(([, v]) => v === minScore).map(([n]) => n);
+      const fin      = {};
+      entries.forEach(([name, score]) => {
+        const losses    = (lastP.includes(name) && entries.length > 1) ? 1 : 0;
+        const penalties = score < threshold ? Math.ceil((threshold - score) / 10) : 0;
+        fin[name] = { losses, penalties, total: losses + penalties };
+      });
+      game.financials = fin;
+
+      // T-Points with tie-sharing
+      const sorted = entries.slice().sort((a, b) => b[1] - a[1]);
+      const tp = {};
+      let i = 0;
+      while (i < sorted.length) {
+        let j = i;
+        while (j < sorted.length - 1 && sorted[j][1] === sorted[j + 1][1]) j++;
+        const pts = players.length - i;
+        for (let k = i; k <= j; k++) tp[sorted[k][0]] = pts;
+        i = j + 1;
+      }
+      game.tPoints = tp;
+    });
+
+    // ── Rebuild allTime and currentTournament ─────────────
+    const allTime = { games };
+    const tids    = [...new Set(games.map(g => g.tournamentId))];
+    const lastTid = tids[tids.length - 1] || '';
+    const currentTournament = {
+      id:    lastTid,
+      games: games.filter(g => g.tournamentId === lastTid)
+    };
+
+    Logger.log('Tournaments found: ' + tids.join(', '));
+    Logger.log('Current tournament: ' + lastTid + ' (' + currentTournament.games.length + ' games)');
+
+    // ── Persist to Meta ───────────────────────────────────
+    setMeta('allTime',           allTime);
+    setMeta('currentTournament', currentTournament);
+
+    // ── Write all sheets ──────────────────────────────────
+    // Re-write archive with clean formatting (keeps data unchanged)
+    writeArchiveSheet(games);
+    writeTournamentSheet(currentTournament);
+    writeLeaderboardSheet(allTime);
+
+    const result = {
+      ok:             true,
+      gamesLoaded:    games.length,
+      tournaments:    tids,
+      currentTournId: lastTid
+    };
+    Logger.log('manualStatsRefresh complete: ' + JSON.stringify(result));
+    return result;
+
+  } catch (err) {
+    Logger.log('EXCEPTION in manualStatsRefresh: ' + err.message + '\n' + err.stack);
+    return { error: err.message };
+  }
 }

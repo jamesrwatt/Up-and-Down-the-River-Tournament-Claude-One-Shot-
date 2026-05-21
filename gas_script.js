@@ -90,38 +90,46 @@ function writeArchiveSheet(games) {
   if (!sheet) sheet = ss.insertSheet(SHEET_ARCHIVE);
   sheet.clearContents();
 
+  if (!games || games.length === 0) {
+    sheet.appendRow(['No games recorded yet.']);
+    return;
+  }
+
   // Collect all unique player names in order of first appearance
   const allPlayers = [];
   games.forEach(g => {
     (g.players||[]).forEach(p => { if (!allPlayers.includes(p)) allPlayers.push(p); });
   });
 
-  // Header rows
+  // Build header
   const staticCols = ['Tournament','Game #','Date','Round #','Cards','Trump'];
   const playerCols = [];
   allPlayers.forEach(p => playerCols.push(`${p} Bid`, `${p} Tricks`, `${p} Score`, `${p} Made`));
-  sheet.appendRow([...staticCols, ...playerCols]);
+  const fullHeader = [...staticCols, ...playerCols];
+  sheet.appendRow(fullHeader);
 
-  // Style header
-  const hdr = sheet.getRange(1, 1, 1, staticCols.length + playerCols.length);
-  hdr.setFontWeight('bold').setBackground('#0b1e13').setFontColor('#c9a84c');
+  // Style header — navy background, white text
+  const hdr = sheet.getRange(1, 1, 1, fullHeader.length);
+  hdr.setFontWeight('bold').setBackground('#2c3e50').setFontColor('#ffffff');
 
+  // Data rows
   games.forEach(game => {
     const { tournamentId, gameNum, date, rounds, players } = game;
     const dateStr = date ? new Date(date).toLocaleDateString() : '';
     (rounds || []).forEach(rd => {
-      const row = [tournamentId, gameNum, dateStr, rd.roundNum, rd.cards, rd.trump];
+      const row = [tournamentId || '', gameNum || '', dateStr, rd.roundNum || '', rd.cards || '', rd.trump || ''];
       allPlayers.forEach(p => {
-        const s = (rd.scores||[]).find(x=>x.name===p);
-        if (s) { row.push(s.bid, s.tricks, s.score, s.made?'Y':'N'); }
-        else   { row.push('','','',''); }
+        const s = (rd.scores||[]).find(x => x.name === p);
+        if (s) { row.push(s.bid, s.tricks, s.score, s.made ? 'Y' : 'N'); }
+        else   { row.push('', '', '', ''); }
       });
       sheet.appendRow(row);
     });
   });
 
-  // Auto-resize
-  try { sheet.autoResizeColumns(1, staticCols.length + playerCols.length); } catch(_) {}
+  // Freeze header row and auto-resize
+  try { sheet.setFrozenRows(1); } catch(_) {}
+  try { sheet.autoResizeColumns(1, fullHeader.length); } catch(_) {}
 }
 
 // ── TOURNAMENT STATS SHEET ───────────────────────────────────
@@ -131,11 +139,16 @@ function writeTournamentSheet(currentTournament) {
   if (!sheet) sheet = ss.insertSheet(SHEET_TOURNEY);
   sheet.clearContents();
 
-  const games  = currentTournament.games || [];
-  const stats  = calcStatsGAS(games);
-  const players = [...new Set(games.flatMap(g=>g.players||[]))];
+  const games   = (currentTournament && currentTournament.games) ? currentTournament.games : [];
+  const players = [...new Set(games.flatMap(g => g.players || []))];
 
-  writeStatsToSheet(sheet, players, stats, `Tournament: ${currentTournament.id||'—'}`);
+  if (players.length === 0) {
+    sheet.appendRow(['No tournament data yet.']);
+    return;
+  }
+
+  const stats = calcStatsGAS(games);
+  writeStatsToSheet(sheet, players, stats, `Tournament: ${(currentTournament && currentTournament.id) || '—'}`);
 }
 
 // ── LEADERBOARD STATS SHEET ──────────────────────────────────
@@ -145,80 +158,129 @@ function writeLeaderboardSheet(allTime) {
   if (!sheet) sheet = ss.insertSheet(SHEET_LEADER);
   sheet.clearContents();
 
-  const games  = allTime.games || [];
-  const stats  = calcStatsGAS(games);
-  const players = [...new Set(games.flatMap(g=>g.players||[]))];
+  const games   = (allTime && allTime.games) ? allTime.games : [];
+  const players = [...new Set(games.flatMap(g => g.players || []))];
 
+  if (players.length === 0) {
+    sheet.appendRow(['No all-time data yet.']);
+    return;
+  }
+
+  const stats = calcStatsGAS(games);
   writeStatsToSheet(sheet, players, stats, 'All-Time Leaderboard');
 }
 
+// ── WRITE STATS TABLE TO SHEET ───────────────────────────────
 function writeStatsToSheet(sheet, players, stats, title) {
-  if (!players.length) return;
-  sheet.appendRow([title]);
-  sheet.getRange(1,1).setFontWeight('bold').setFontSize(13).setFontColor('#c9a84c');
-  sheet.appendRow([]);
+  if (!players || players.length === 0) return;
 
   const STAT_ROWS = [
     { section:'POINTS DISTRIBUTION' },
     { key:'totalTournamentPoints', label:'Total Tournament Points' },
-    { key:'tp5', label:'Games Earning 5 T-Points' },
-    { key:'tp4', label:'Games Earning 4 T-Points' },
-    { key:'tp3', label:'Games Earning 3 T-Points' },
-    { key:'tp2', label:'Games Earning 2 T-Points' },
-    { key:'tp1', label:'Games Earning 1 T-Point' },
+    { key:'tp5',  label:'Games Earning 5 T-Points' },
+    { key:'tp4',  label:'Games Earning 4 T-Points' },
+    { key:'tp3',  label:'Games Earning 3 T-Points' },
+    { key:'tp2',  label:'Games Earning 2 T-Points' },
+    { key:'tp1',  label:'Games Earning 1 T-Point'  },
     { section:'FINANCIALS' },
-    { key:'moneyLosses',     label:'Money From Losses',         fmt:'$' },
-    { key:'moneyPenalties',  label:'Money From Penalties',      fmt:'$' },
-    { key:'totalPot',        label:'Total Money in Pot',        fmt:'$' },
-    { key:'mostMoneyOneGame',label:'Most Money Paid One Game',  fmt:'$' },
+    { key:'moneyLosses',     label:'Money From Losses',        fmt:'$' },
+    { key:'moneyPenalties',  label:'Money From Penalties',     fmt:'$' },
+    { key:'totalPot',        label:'Total Money in Pot',       fmt:'$' },
+    { key:'mostMoneyOneGame',label:'Most Money Paid One Game', fmt:'$' },
     { section:'GENERAL SCORING' },
-    { key:'avgGamePoints',   label:'Average Game Points' },
-    { key:'totalGamePoints', label:'Total Game Points' },
-    { key:'totalSets',       label:'Total Number of Sets' },
-    { key:'totalTricks',     label:'Total Number of Tricks' },
+    { key:'avgGamePoints',  label:'Average Game Points' },
+    { key:'totalGamePoints',label:'Total Game Points'   },
+    { key:'totalSets',      label:'Total Number of Sets'   },
+    { key:'totalTricks',    label:'Total Number of Tricks' },
     { section:'GAME RECORDS' },
-    { key:'mostSetsOneGame',   label:'Most Sets in One Game' },
-    { key:'leastSetsOneGame',  label:'Least Sets in One Game' },
-    { key:'mostTricksOneGame', label:'Most Tricks in One Game' },
+    { key:'mostSetsOneGame',   label:'Most Sets in One Game'    },
+    { key:'leastSetsOneGame',  label:'Least Sets in One Game'   },
+    { key:'mostTricksOneGame', label:'Most Tricks in One Game'  },
     { key:'leastTricksOneGame',label:'Least Tricks in One Game' },
-    { key:'lowestScore',       label:'Lowest Score Ever' },
-    { key:'highestScore',      label:'Highest Score Ever' },
+    { key:'lowestScore',       label:'Lowest Score Ever'        },
+    { key:'highestScore',      label:'Highest Score Ever'       },
     { section:'STREAKS' },
-    { key:'longestWinStreakGames',  label:'Longest Winning Streak (Games)' },
-    { key:'longestLoseStreakGames', label:'Longest Losing Streak (Games)' },
-    { key:'longestWinStreakHands',  label:'Longest Winning Streak (Hands)' },
-    { key:'longestLoseStreakHands', label:'Longest Losing Streak (Hands)' },
-    { key:'longestStreakNoPay',     label:'Longest Streak Without Paying' },
-    { key:'longestStreakPay',       label:'Longest Streak With Paying' },
+    { key:'longestWinStreakGames',  label:'Longest Winning Streak (Games)'   },
+    { key:'longestLoseStreakGames', label:'Longest Losing Streak (Games)'    },
+    { key:'longestWinStreakHands',  label:'Longest Winning Streak (Hands)'   },
+    { key:'longestLoseStreakHands', label:'Longest Losing Streak (Hands)'    },
+    { key:'longestStreakNoPay',     label:'Longest Streak Without Paying'    },
+    { key:'longestStreakPay',       label:'Longest Streak With Paying'       },
   ];
 
-  // Header
+  const numCols = players.length + 1; // stat label + one col per player
+
+  // ── Row 1: Title ──────────────────────────────────────────
+  sheet.appendRow([title]);
+  sheet.getRange(1, 1, 1, numCols)
+       .merge()
+       .setFontWeight('bold')
+       .setFontSize(13)
+       .setBackground('#2c3e50')
+       .setFontColor('#ffffff')
+       .setHorizontalAlignment('left');
+
+  // ── Row 2: Column headers ─────────────────────────────────
   const headerRow = ['Statistic', ...players];
   sheet.appendRow(headerRow);
-  const hr = sheet.getRange(3, 1, 1, headerRow.length);
-  hr.setFontWeight('bold').setBackground('#112418').setFontColor('#c9a84c');
+  sheet.getRange(2, 1, 1, numCols)
+       .setFontWeight('bold')
+       .setBackground('#3d5166')
+       .setFontColor('#ffffff');
 
-  let rowNum = 4;
+  // ── Rows 3+: Stats ────────────────────────────────────────
+  let sheetRow = 3; // track actual sheet row (1-indexed)
+
   STAT_ROWS.forEach(row => {
     if (row.section) {
-      sheet.appendRow([row.section]);
-      sheet.getRange(rowNum, 1).setFontWeight('bold').setFontColor('#7a9080').setBackground('#0b1e13');
-      sheet.getRange(rowNum, 1, 1, players.length+1).setBackground('#0b1e13');
+      // Section divider row
+      const sectionLabel = [row.section];
+      // Pad to full width so merge works cleanly
+      for (let i = 1; i < numCols; i++) sectionLabel.push('');
+      sheet.appendRow(sectionLabel);
+      sheet.getRange(sheetRow, 1, 1, numCols)
+           .setFontWeight('bold')
+           .setFontColor('#ffffff')
+           .setBackground('#4a6070')
+           .setFontSize(9);
     } else {
+      // Data row
       const cells = [row.label];
       players.forEach(p => {
-        const s = stats[p];
-        let val = s ? s[row.key] : '—';
-        if (val === null || val === undefined) val = '—';
-        if (row.fmt === '$' && val !== '—') val = `$${(+val).toFixed(2)}`;
+        const s   = stats[p];
+        let val   = (s && s[row.key] !== undefined && s[row.key] !== null) ? s[row.key] : '—';
+        if (row.fmt === '$' && val !== '—') val = '$' + (+val).toFixed(2);
         cells.push(val);
       });
       sheet.appendRow(cells);
+
+      // Right-align numeric columns
+      if (players.length > 0) {
+        sheet.getRange(sheetRow, 2, 1, players.length).setHorizontalAlignment('center');
+      }
+      // Money rows: green font
+      if (row.fmt === '$') {
+        sheet.getRange(sheetRow, 2, 1, players.length).setFontColor('#27ae60');
+      }
     }
-    rowNum++;
+    sheetRow++;
   });
 
-  try { sheet.autoResizeColumns(1, players.length + 1); } catch(_){}
+  // ── Final formatting ──────────────────────────────────────
+  try { sheet.setFrozenRows(2); } catch(_) {}
+  try { sheet.autoResizeColumns(1, numCols); } catch(_) {}
+
+  // Alternate row shading on data rows (skip title + header)
+  const dataStart = 3;
+  const dataEnd   = sheetRow - 1;
+  for (let r = dataStart; r <= dataEnd; r++) {
+    // Only shade non-section rows (section rows are already colored)
+    const bg = sheet.getRange(r, 1).getBackground();
+    if (bg === '#4a6070' || bg === '#4a6070'.toLowerCase()) continue; // skip section rows
+    if (r % 2 === 0) {
+      sheet.getRange(r, 1, 1, numCols).setBackground('#f4f7f6');
+    }
+  }
 }
 
 // ── STATS CALCULATOR (GAS version mirrors client) ────────────

@@ -26,7 +26,7 @@
 6. [Tournament & Scoring Rules](#-tournament--scoring-rules)
 7. [Financial Tracking (The Pot)](#-financial-tracking-the-pot)
 8. [Statistics Tracked](#-statistics-tracked)
-9. [Cloud Sync Setup (Google Sheets)](#-cloud-sync-setup-on-google-sheets)
+9. [Cloud Sync Setup on Google Sheets](#-cloud-sync-setup-on-google-sheets)
 10. [GitHub Pages Deployment](#-github-pages-deployment)
 11. [File Structure](#-file-structure)
 12. [Technical Details](#-technical-details)

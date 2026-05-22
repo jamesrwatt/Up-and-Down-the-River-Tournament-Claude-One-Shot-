@@ -285,70 +285,105 @@ function writeStatsToSheet(sheet, players, stats, title) {
 
 // ── STATS CALCULATOR (GAS version mirrors client) ────────────
 function calcStatsGAS(games) {
-  const TRUMP_SEQUENCE = ['Hearts','Clubs','Diamonds','Spades'];
-  const stats = {};
+  const stats       = {};
   const playerGames = {};
 
   games.forEach(game => {
-    const { players, rounds, totals, financials, tPoints } = game;
-    if (!players || !rounds) return;
+    const { players, rounds, financials, tPoints } = game;
+    if (!players || !rounds || players.length === 0) return;
+
+    // ── Recompute per-game score from rounds (don't trust stored totals) ──
+    const gameScores = {};
+    players.forEach(p => { gameScores[p] = 0; });
+    (rounds || []).forEach(rd => {
+      (rd.scores || []).forEach(s => {
+        if (gameScores[s.name] !== undefined) {
+          // Always derive score from bid/tricks — ignore any stored score value
+          const made  = (Number(s.bid) === Number(s.tricks));
+          const score = made ? 10 + Number(s.tricks) : Number(s.tricks);
+          gameScores[s.name] += score;
+        }
+      });
+    });
 
     players.forEach(name => {
       if (!stats[name]) stats[name] = blankStats(name);
       if (!playerGames[name]) playerGames[name] = { hw:0, hl:0, bw:0, bl:0, np:0, pp:0, bnp:0, bpp:0 };
-      const s  = stats[name];
-      const tp = (tPoints||{})[name] || 0;
-      const gameScore = (totals||{})[name] || 0;
-      const fin = (financials||{})[name] || { losses:0, penalties:0, total:0 };
-      const pg  = playerGames[name];
 
+      const s         = stats[name];
+      const pg        = playerGames[name];
+      const gameScore = gameScores[name] || 0;      // recomputed, reliable
+      const tp        = Number((tPoints||{})[name]) || 0;
+      const fin       = (financials||{})[name] || { losses:0, penalties:0, total:0 };
+
+      // ── Tournament points ──
       s.totalTournamentPoints += tp;
-      if (tp===5) s.tp5++; else if (tp===4) s.tp4++; else if (tp===3) s.tp3++;
-      else if (tp===2) s.tp2++; else if (tp===1) s.tp1++;
+      if      (tp === 5) s.tp5++;
+      else if (tp === 4) s.tp4++;
+      else if (tp === 3) s.tp3++;
+      else if (tp === 2) s.tp2++;
+      else if (tp === 1) s.tp1++;
 
-      s.moneyLosses    += fin.losses||0;
-      s.moneyPenalties += fin.penalties||0;
-      s.totalPot       += fin.total||0;
-      s.mostMoneyOneGame = Math.max(s.mostMoneyOneGame, fin.total||0);
+      // ── Financials ──
+      s.moneyLosses     += Number(fin.losses)   || 0;
+      s.moneyPenalties  += Number(fin.penalties) || 0;
+      s.totalPot        += Number(fin.total)     || 0;
+      s.mostMoneyOneGame = Math.max(s.mostMoneyOneGame, Number(fin.total) || 0);
+
+      // ── Game totals (now recomputed, not from stored totals) ──
       s.totalGamePoints += gameScore;
-      s.lowestScore     = Math.min(s.lowestScore, gameScore);
-      s.highestScore    = Math.max(s.highestScore, gameScore);
+      s.lowestScore      = Math.min(s.lowestScore,  gameScore);
+      s.highestScore     = Math.max(s.highestScore, gameScore);
       s._games++;
 
-      let gameSets=0, gameTricks=0;
-      (rounds||[]).forEach(rd => {
-        const prd = (rd.scores||[]).find(x=>x.name===name);
+      // ── Per-round stats ──
+      let gameSets = 0, gameTricks = 0;
+      (rounds || []).forEach(rd => {
+        const prd = (rd.scores || []).find(x => x.name === name);
         if (!prd) return;
-        if (!prd.made) gameSets++;
-        gameTricks += prd.tricks||0;
-        if (prd.made) { pg.hw++; pg.hl=0; pg.bw=Math.max(pg.bw,pg.hw); }
-        else          { pg.hl++; pg.hw=0; pg.bl=Math.max(pg.bl,pg.hl); }
+        const made   = (Number(prd.bid) === Number(prd.tricks));
+        const tricks = Number(prd.tricks) || 0;
+        if (!made) gameSets++;
+        gameTricks += tricks;
+        if (made) { pg.hw++; pg.hl = 0; pg.bw = Math.max(pg.bw, pg.hw); }
+        else      { pg.hl++; pg.hw = 0; pg.bl = Math.max(pg.bl, pg.hl); }
       });
 
-      s.totalSets       += gameSets;
-      s.totalTricks     += gameTricks;
-      s.mostSetsOneGame   = Math.max(s.mostSetsOneGame, gameSets);
-      s.leastSetsOneGame  = Math.min(s.leastSetsOneGame, gameSets);
-      s.mostTricksOneGame  = Math.max(s.mostTricksOneGame, gameTricks);
+      s.totalSets        += gameSets;
+      s.totalTricks      += gameTricks;
+      s.mostSetsOneGame    = Math.max(s.mostSetsOneGame,   gameSets);
+      s.leastSetsOneGame   = Math.min(s.leastSetsOneGame,  gameSets);
+      s.mostTricksOneGame  = Math.max(s.mostTricksOneGame,  gameTricks);
       s.leastTricksOneGame = Math.min(s.leastTricksOneGame, gameTricks);
 
-      const rank = Object.values(tPoints||{}).filter(v=>v>tp).length;
-      if (rank===0) { s._cw++; s._cl=0; s.longestWinStreakGames=Math.max(s.longestWinStreakGames,s._cw); }
-      else if (rank===(players.length-1)) { s._cl++; s._cw=0; s.longestLoseStreakGames=Math.max(s.longestLoseStreakGames,s._cl); }
+      // ── Game win/lose streaks ──
+      const rank = Object.values(tPoints || {}).filter(v => Number(v) > tp).length;
+      if (rank === 0) {
+        s._cw++; s._cl = 0;
+        s.longestWinStreakGames  = Math.max(s.longestWinStreakGames,  s._cw);
+      } else if (rank === players.length - 1) {
+        s._cl++; s._cw = 0;
+        s.longestLoseStreakGames = Math.max(s.longestLoseStreakGames, s._cl);
+      }
 
-      if ((fin.total||0)>0) { pg.pp++; pg.np=0; pg.bpp=Math.max(pg.bpp,pg.pp); }
-      else                  { pg.np++; pg.pp=0; pg.bnp=Math.max(pg.bnp,pg.np); }
+      // ── Pay streaks ──
+      if ((Number(fin.total) || 0) > 0) {
+        pg.pp++; pg.np = 0; pg.bpp = Math.max(pg.bpp, pg.pp);
+      } else {
+        pg.np++; pg.pp = 0; pg.bnp = Math.max(pg.bnp, pg.np);
+      }
     });
   });
 
+  // ── Finalise derived stats ──
   Object.keys(stats).forEach(name => {
     const s  = stats[name];
     const pg = playerGames[name];
-    s.avgGamePoints       = s._games ? +(s.totalGamePoints/s._games).toFixed(1) : 0;
-    if (s.leastSetsOneGame   === Infinity) s.leastSetsOneGame   = 0;
-    if (s.leastTricksOneGame === Infinity) s.leastTricksOneGame = 0;
-    if (s.lowestScore  === Infinity)  s.lowestScore  = 0;
-    if (s.highestScore === -Infinity) s.highestScore = 0;
+    s.avgGamePoints       = s._games ? +(s.totalGamePoints / s._games).toFixed(1) : 0;
+    if (s.leastSetsOneGame   === Infinity)  s.leastSetsOneGame   = 0;
+    if (s.leastTricksOneGame === Infinity)  s.leastTricksOneGame = 0;
+    if (s.lowestScore        === Infinity)  s.lowestScore        = 0;
+    if (s.highestScore       === -Infinity) s.highestScore       = 0;
     if (pg) {
       s.longestWinStreakHands  = pg.bw;
       s.longestLoseStreakHands = pg.bl;
@@ -356,6 +391,7 @@ function calcStatsGAS(games) {
       s.longestStreakPay       = pg.bpp;
     }
   });
+
   return stats;
 }
 
@@ -450,22 +486,21 @@ function manualStatsRefresh() {
       const scores = [];
 
       archivePlayers.forEach((p, i) => {
-        const bid    = pData[i * 4];
-        const tricks = pData[i * 4 + 1];
-        const score  = pData[i * 4 + 2];
-        const madeRaw = pData[i * 4 + 3];
+        const bidRaw    = pData[i * 4];
+        const tricksRaw = pData[i * 4 + 1];
+        // Score column (index i*4+2) is intentionally IGNORED —
+        // we always recompute from bid & tricks to guard against
+        // manually-entered or cumulative values in the sheet.
+        const madeRaw   = pData[i * 4 + 3];
 
         // Only include player if they have bid data for this round
-        if (bid !== '' && bid !== null && bid !== undefined) {
+        if (bidRaw !== '' && bidRaw !== null && bidRaw !== undefined) {
           if (!g.players.includes(p)) g.players.push(p);
-          const made = (String(madeRaw).trim().toUpperCase() === 'Y');
-          scores.push({
-            name:   p,
-            bid:    Number(bid),
-            tricks: Number(tricks),
-            score:  Number(score),
-            made:   made
-          });
+          const bid    = Number(bidRaw);
+          const tricks = Number(tricksRaw);
+          const made   = bid === tricks;                  // recompute
+          const score  = made ? 10 + tricks : tricks;    // recompute
+          scores.push({ name: p, bid, tricks, score, made });
         }
       });
 

@@ -737,54 +737,68 @@ function blankPlayerStats() {
 }
 
 function calcStats(games, scope) {
-  // games: array of finalized game objects
-  // scope: 'tournament' or 'allTime'
-  // Returns { playerName: statsObj }
   const stats = {};
-  const playerGames = {}; // track cross-game hand streaks
+  const playerGames = {};
 
   games.forEach(game => {
-    const { players, rounds, totals, financials, tPoints, maxCards } = game;
-    if (!players || !rounds) return;
+    const { players, rounds, financials, tPoints } = game;
+    if (!players || !rounds || players.length === 0) return;
+
+    // ── Recompute game score from rounds — never trust stored totals ──
+    const gameScores = {};
+    players.forEach(p => { gameScores[p] = 0; });
+    rounds.forEach(rd => {
+      (rd.scores || []).forEach(s => {
+        if (gameScores[s.name] !== undefined) {
+          const made  = (Number(s.bid) === Number(s.tricks));
+          const score = made ? 10 + Number(s.tricks) : Number(s.tricks);
+          gameScores[s.name] += score;
+        }
+      });
+    });
 
     players.forEach(name => {
       if (!stats[name]) { stats[name] = blankPlayerStats(); stats[name].name = name; }
-      if (!playerGames[name]) playerGames[name] = { handWinStreak:0, handLoseStreak:0, bestHandWin:0, bestHandLose:0, noPayStreak:0, payStreak:0, bestNoPay:0, bestPay:0 };
-      const s = stats[name];
-      const gameScore = totals[name] || 0;
-      const tp = tPoints[name] || 0;
+      if (!playerGames[name]) playerGames[name] = {
+        handWinStreak:0, handLoseStreak:0, bestHandWin:0, bestHandLose:0,
+        noPayStreak:0, payStreak:0, bestNoPay:0, bestPay:0
+      };
+      const s         = stats[name];
+      const pg        = playerGames[name];
+      const gameScore = gameScores[name] || 0;   // recomputed
+      const tp        = Number((tPoints  || {})[name]) || 0;
+      const fin       = (financials || {})[name] || { losses:0, penalties:0, total:0 };
 
       // T-Points
       s.totalTournamentPoints += tp;
-      if (tp === 5) s.tp5++;
+      if      (tp === 5) s.tp5++;
       else if (tp === 4) s.tp4++;
       else if (tp === 3) s.tp3++;
       else if (tp === 2) s.tp2++;
       else if (tp === 1) s.tp1++;
 
       // Financials
-      const fin = financials[name] || { losses:0, penalties:0, total:0 };
-      s.moneyLosses += fin.losses;
-      s.moneyPenalties += fin.penalties;
-      s.totalPot += fin.total;
-      s.mostMoneyOneGame = Math.max(s.mostMoneyOneGame, fin.total);
+      s.moneyLosses    += Number(fin.losses)    || 0;
+      s.moneyPenalties += Number(fin.penalties) || 0;
+      s.totalPot       += Number(fin.total)     || 0;
+      s.mostMoneyOneGame = Math.max(s.mostMoneyOneGame, Number(fin.total) || 0);
 
-      // General
+      // General scoring — recomputed gameScore
       s.totalGamePoints += gameScore;
       s._gameScores.push(gameScore);
-      s.lowestScore = Math.min(s.lowestScore, gameScore);
+      s.lowestScore  = Math.min(s.lowestScore,  gameScore);
       s.highestScore = Math.max(s.highestScore, gameScore);
 
-      // Per round for sets/tricks
+      // Per-round: recompute made/score from bid & tricks
       let gameSets = 0, gameTricks = 0;
-      const pg = playerGames[name];
       rounds.forEach(rd => {
-        const prd = rd.scores.find(x => x.name === name);
+        const prd = (rd.scores || []).find(x => x.name === name);
         if (!prd) return;
-        if (!prd.made) gameSets++;
-        gameTricks += prd.tricks;
-        // Hand streak
-        if (prd.made) {
+        const made   = (Number(prd.bid) === Number(prd.tricks));
+        const tricks = Number(prd.tricks) || 0;
+        if (!made) gameSets++;
+        gameTricks += tricks;
+        if (made) {
           pg.handWinStreak++; pg.handLoseStreak = 0;
           pg.bestHandWin = Math.max(pg.bestHandWin, pg.handWinStreak);
         } else {
@@ -793,15 +807,15 @@ function calcStats(games, scope) {
         }
       });
 
-      s.totalSets += gameSets;
-      s.totalTricks += gameTricks;
-      s.mostSetsOneGame = Math.max(s.mostSetsOneGame, gameSets);
-      s.leastSetsOneGame = Math.min(s.leastSetsOneGame, gameSets);
-      s.mostTricksOneGame = Math.max(s.mostTricksOneGame, gameTricks);
+      s.totalSets       += gameSets;
+      s.totalTricks     += gameTricks;
+      s.mostSetsOneGame   = Math.max(s.mostSetsOneGame,   gameSets);
+      s.leastSetsOneGame  = Math.min(s.leastSetsOneGame,  gameSets);
+      s.mostTricksOneGame  = Math.max(s.mostTricksOneGame,  gameTricks);
       s.leastTricksOneGame = Math.min(s.leastTricksOneGame, gameTricks);
 
-      // Game win/lose streak (based on T-points rank: 1st = win)
-      const rank = Object.values(tPoints).filter(v => v > tp).length; // 0 = 1st
+      // Game win/lose streak
+      const rank = Object.values(tPoints || {}).filter(v => Number(v) > tp).length;
       if (rank === 0) {
         s._curWinGames++; s._curLoseGames = 0;
         s.longestWinStreakGames = Math.max(s.longestWinStreakGames, s._curWinGames);
@@ -811,7 +825,7 @@ function calcStats(games, scope) {
       }
 
       // Pay streaks
-      if (fin.total > 0) {
+      if ((Number(fin.total) || 0) > 0) {
         pg.payStreak++; pg.noPayStreak = 0;
         pg.bestPay = Math.max(pg.bestPay, pg.payStreak);
       } else {
@@ -821,21 +835,21 @@ function calcStats(games, scope) {
     });
   });
 
-  // Finalize derived
+  // Finalise
   Object.keys(stats).forEach(name => {
-    const s = stats[name];
+    const s  = stats[name];
     const pg = playerGames[name];
-    const n = s._gameScores.length;
+    const n  = s._gameScores.length;
     s.avgGamePoints = n ? parseFloat((s.totalGamePoints / n).toFixed(1)) : 0;
-    if (s.leastSetsOneGame === Infinity) s.leastSetsOneGame = 0;
-    if (s.leastTricksOneGame === Infinity) s.leastTricksOneGame = 0;
-    if (s.lowestScore === Infinity) s.lowestScore = 0;
-    if (s.highestScore === -Infinity) s.highestScore = 0;
+    if (s.leastSetsOneGame   === Infinity)  s.leastSetsOneGame   = 0;
+    if (s.leastTricksOneGame === Infinity)  s.leastTricksOneGame = 0;
+    if (s.lowestScore        === Infinity)  s.lowestScore        = 0;
+    if (s.highestScore       === -Infinity) s.highestScore       = 0;
     if (pg) {
-      s.longestWinStreakHands = pg.bestHandWin;
+      s.longestWinStreakHands  = pg.bestHandWin;
       s.longestLoseStreakHands = pg.bestHandLose;
-      s.longestStreakNoPay = pg.bestNoPay;
-      s.longestStreakPay = pg.bestPay;
+      s.longestStreakNoPay     = pg.bestNoPay;
+      s.longestStreakPay       = pg.bestPay;
     }
   });
 

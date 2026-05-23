@@ -61,14 +61,37 @@ function saveData(payload) {
   return { ok: true };
 }
 
-// ── META (stores JSON blobs in Meta sheet) ───────────────────
+// ── META (chunked JSON storage — avoids 50k char cell limit) ─
+// Large values are split into 40k-char chunks stored as key, key__1, key__2…
+// Reads reassemble them transparently.
+const META_CHUNK_SIZE = 40000;
+
 function getMeta() {
   const ss    = SpreadsheetApp.openById(SS_ID);
   let sheet   = ss.getSheetByName(SHEET_META);
   if (!sheet) { sheet = ss.insertSheet(SHEET_META); sheet.hideSheet(); }
-  const data  = sheet.getDataRange().getValues();
-  const obj   = {};
-  data.forEach(row => { if (row[0]) { try { obj[row[0]] = JSON.parse(row[1]); } catch(_){} } });
+
+  const data = sheet.getDataRange().getValues();
+  // Build a raw map of every row: key → value string
+  const rawMap = {};
+  data.forEach(row => {
+    const k = String(row[0] || '').trim();
+    const v = String(row[1] || '');
+    if (k) rawMap[k] = v;
+  });
+
+  // Reassemble chunked keys: key, key__1, key__2 … → joined JSON string
+  const obj = {};
+  const baseKeys = Object.keys(rawMap).filter(k => !k.match(/__\d+$/));
+  baseKeys.forEach(baseKey => {
+    let json = rawMap[baseKey];
+    let i = 1;
+    while (rawMap[`${baseKey}__${i}`] !== undefined) {
+      json += rawMap[`${baseKey}__${i}`];
+      i++;
+    }
+    try { obj[baseKey] = JSON.parse(json); } catch(_) {}
+  });
   return obj;
 }
 
@@ -76,11 +99,37 @@ function setMeta(key, value) {
   const ss    = SpreadsheetApp.openById(SS_ID);
   let sheet   = ss.getSheetByName(SHEET_META);
   if (!sheet) { sheet = ss.insertSheet(SHEET_META); sheet.hideSheet(); }
-  const data  = sheet.getDataRange().getValues();
-  for (let i = 0; i < data.length; i++) {
-    if (data[i][0] === key) { sheet.getRange(i+1, 2).setValue(JSON.stringify(value)); return; }
+
+  const json   = JSON.stringify(value);
+  const chunks = [];
+  for (let i = 0; i < json.length; i += META_CHUNK_SIZE) {
+    chunks.push(json.slice(i, i + META_CHUNK_SIZE));
   }
-  sheet.appendRow([key, JSON.stringify(value)]);
+
+  // Build map of all chunk keys for this base key
+  const chunkKeys = [key];
+  for (let i = 1; i < chunks.length; i++) chunkKeys.push(`${key}__${i}`);
+
+  // Read current sheet to find existing rows
+  const data = sheet.getDataRange().getValues();
+
+  // Delete ALL existing rows for this key (base + any old chunks)
+  // Work backwards so row indices stay valid
+  const rowsToDelete = [];
+  data.forEach((row, idx) => {
+    const k = String(row[0] || '').trim();
+    if (k === key || k.match(new RegExp(`^${key}__\\d+$`))) {
+      rowsToDelete.push(idx + 1); // 1-indexed
+    }
+  });
+  for (let i = rowsToDelete.length - 1; i >= 0; i--) {
+    sheet.deleteRow(rowsToDelete[i]);
+  }
+
+  // Append all chunks as new rows
+  chunks.forEach((chunk, i) => {
+    sheet.appendRow([chunkKeys[i], chunk]);
+  });
 }
 
 // ── GAME ARCHIVE SHEET ───────────────────────────────────────

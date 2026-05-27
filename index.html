@@ -117,8 +117,9 @@ body{display:flex;flex-direction:column}
 .stats-section-row td{background:var(--card2)!important;color:var(--primary);font-weight:800;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;padding:8px 14px;border-top:2px solid var(--border2);border-bottom:1px solid var(--border2)}
 .stats-table td.highlight{color:var(--success);font-weight:700}
 .stats-table td.mono{font-family:var(--font-mono)}
-.stats-table td.stat-best{color:var(--success);font-weight:700}
-.stats-table td.stat-worst{color:var(--accent);font-weight:700}
+.stats-table td.stat-best{color:var(--success)!important;font-weight:700!important}
+.stats-table td.stat-worst{color:var(--accent)!important;font-weight:700!important}
+.stats-table td.stat-neutral{color:var(--text2)}
 
 /* ===== GAME SCREEN ===== */
 #screen-game{flex-direction:column}
@@ -254,7 +255,7 @@ select.settings-input option{background:#fff;color:var(--text)}
 .progress-pip.nt{background:#74b9ff}
 
 /* ===== MISC ===== */
-.money-value{font-family:var(--font-mono);color:var(--success);font-weight:700}
+.money-value{font-family:var(--font-mono);font-weight:600}
 .text-primary{color:var(--primary)}
 .text-red{color:var(--accent)}
 .text-green{color:var(--success)}
@@ -880,10 +881,10 @@ const STAT_ROWS = [
   { key:'totalTricks',      label:'Total Number of Tricks',       fmt:'num',   dir:'high' },
   { section:'GAME RECORDS' },
   { key:'mostSetsOneGame',    label:'Most Sets in One Game',      fmt:'num',   dir:'low'  },
-  { key:'leastSetsOneGame',   label:'Least Sets in One Game',     fmt:'num',   dir:'high' },
+  { key:'leastSetsOneGame',   label:'Least Sets in One Game',     fmt:'num',   dir:'low'  },
   { key:'mostTricksOneGame',  label:'Most Tricks in One Game',    fmt:'num',   dir:'high' },
-  { key:'leastTricksOneGame', label:'Least Tricks in One Game',   fmt:'num',   dir:'low'  },
-  { key:'lowestScore',        label:'Lowest Score Ever',          fmt:'num',   dir:'low'  },
+  { key:'leastTricksOneGame', label:'Least Tricks in One Game',   fmt:'num',   dir:'high' },
+  { key:'lowestScore',        label:'Lowest Score Ever',          fmt:'num',   dir:'high' },
   { key:'highestScore',       label:'Highest Score Ever',         fmt:'num',   dir:'high' },
   { section:'STREAKS' },
   { key:'longestWinStreakGames',  label:'Longest Winning Streak (Games)',        fmt:'num', dir:'high' },
@@ -909,30 +910,43 @@ function renderStatsTable(players, statsObj, tableEl, playerRowEl, bodyEl, empty
   emptyEl.style.display = 'none';
   tableEl.style.display = '';
 
-  // Header
-  playerRowEl.innerHTML = `<th>Statistic</th>` + players.map(p => `<th>${p}</th>`).join('');
+  // ── Sort players: T-Points DESC → totalPot ASC → avgGamePoints DESC ──
+  const sorted = [...players].sort((a, b) => {
+    const sa = statsObj[a] || {};
+    const sb = statsObj[b] || {};
+    // 1. Total Tournament Points — higher is better
+    const tpDiff = (sb.totalTournamentPoints || 0) - (sa.totalTournamentPoints || 0);
+    if (tpDiff !== 0) return tpDiff;
+    // 2. Total Money in Pot — lower is better (less paid = better rank)
+    const potDiff = (sa.totalPot || 0) - (sb.totalPot || 0);
+    if (potDiff !== 0) return potDiff;
+    // 3. Average Game Points — higher is better
+    return (sb.avgGamePoints || 0) - (sa.avgGamePoints || 0);
+  });
+
+  // Header using sorted player order
+  playerRowEl.innerHTML = `<th>Statistic</th>` + sorted.map(p => `<th>${p}</th>`).join('');
 
   let html = '';
   STAT_ROWS.forEach(row => {
     if (row.section) {
-      html += `<tr class="stats-section-row"><td colspan="${players.length + 1}">${row.section}</td></tr>`;
+      html += `<tr class="stats-section-row"><td colspan="${sorted.length + 1}">${row.section}</td></tr>`;
       return;
     }
 
-    // Gather raw numeric values for each player (for ranking)
-    const rawVals = players.map(p => {
+    // Raw numeric values for each sorted player
+    const rawVals = sorted.map(p => {
       const s = statsObj[p];
       return (s && s[row.key] !== undefined && s[row.key] !== null) ? +s[row.key] : null;
     });
 
-    // Find best / worst across players (ignoring nulls)
+    // Determine best / worst (only when values differ)
     let bestVal = null, worstVal = null;
-    if (row.dir && players.length > 1) {
+    if (row.dir && sorted.length > 1) {
       const defined = rawVals.filter(v => v !== null);
-      if (defined.length > 0) {
+      if (defined.length > 1) {
         const maxV = Math.max(...defined);
         const minV = Math.min(...defined);
-        // Only color if there's actually a difference (no coloring when all tied)
         if (maxV !== minV) {
           bestVal  = row.dir === 'high' ? maxV : minV;
           worstVal = row.dir === 'high' ? minV : maxV;
@@ -940,15 +954,15 @@ function renderStatsTable(players, statsObj, tableEl, playerRowEl, bodyEl, empty
       }
     }
 
-    const cells = players.map((p, i) => {
-      const s   = statsObj[p];
+    const cells = sorted.map((p, i) => {
       const raw = rawVals[i];
       const fmt = formatStat(raw, row.fmt);
 
+      // Build class list — start with mono, add color class
       let cls = 'mono';
-      if (row.fmt === 'money') cls += ' money-value';
       if (raw !== null && bestVal  !== null && raw === bestVal)  cls += ' stat-best';
-      if (raw !== null && worstVal !== null && raw === worstVal) cls += ' stat-worst';
+      else if (raw !== null && worstVal !== null && raw === worstVal) cls += ' stat-worst';
+      // No money-value class needed — font handled by mono
 
       return `<td class="${cls}">${fmt}</td>`;
     }).join('');

@@ -223,6 +223,17 @@ function writeLeaderboardSheet(allTime) {
 function writeStatsToSheet(sheet, players, stats, title) {
   if (!players || players.length === 0) return;
 
+  // Sort players: T-Points DESC → totalPot ASC → avgGamePoints DESC
+  const sorted = players.slice().sort(function(a, b) {
+    const sa = stats[a] || {};
+    const sb = stats[b] || {};
+    var tpDiff = (sb.totalTournamentPoints || 0) - (sa.totalTournamentPoints || 0);
+    if (tpDiff !== 0) return tpDiff;
+    var potDiff = (sa.totalPot || 0) - (sb.totalPot || 0);
+    if (potDiff !== 0) return potDiff;
+    return (sb.avgGamePoints || 0) - (sa.avgGamePoints || 0);
+  });
+
   const STAT_ROWS = [
     { section:'POINTS DISTRIBUTION' },
     { key:'totalTournamentPoints', label:'Total Tournament Points',          dir:'high' },
@@ -243,10 +254,10 @@ function writeStatsToSheet(sheet, players, stats, title) {
     { key:'totalTricks',      label:'Total Number of Tricks',                dir:'high' },
     { section:'GAME RECORDS' },
     { key:'mostSetsOneGame',    label:'Most Sets in One Game',               dir:'low'  },
-    { key:'leastSetsOneGame',   label:'Least Sets in One Game',              dir:'high' },
+    { key:'leastSetsOneGame',   label:'Least Sets in One Game',              dir:'low'  },
     { key:'mostTricksOneGame',  label:'Most Tricks in One Game',             dir:'high' },
-    { key:'leastTricksOneGame', label:'Least Tricks in One Game',            dir:'low'  },
-    { key:'lowestScore',        label:'Lowest Score Ever',                   dir:'low'  },
+    { key:'leastTricksOneGame', label:'Least Tricks in One Game',            dir:'high' },
+    { key:'lowestScore',        label:'Lowest Score Ever',                   dir:'high' },
     { key:'highestScore',       label:'Highest Score Ever',                  dir:'high' },
     { section:'STREAKS' },
     { key:'longestWinStreakGames',  label:'Longest Winning Streak (Games)',        dir:'high' },
@@ -257,7 +268,7 @@ function writeStatsToSheet(sheet, players, stats, title) {
     { key:'longestStreakPay',       label:'Longest Streak With Paying',            dir:'low'  },
   ];
 
-  const numCols = players.length + 1; // stat label + one col per player
+  const numCols = sorted.length + 1; // stat label + one col per player
 
   // ── Row 1: Title ──────────────────────────────────────────
   sheet.appendRow([title]);
@@ -270,7 +281,7 @@ function writeStatsToSheet(sheet, players, stats, title) {
        .setHorizontalAlignment('left');
 
   // ── Row 2: Column headers ─────────────────────────────────
-  const headerRow = ['Statistic', ...players];
+  const headerRow = ['Statistic', ...sorted];
   sheet.appendRow(headerRow);
   sheet.getRange(2, 1, 1, numCols)
        .setFontWeight('bold')
@@ -278,13 +289,11 @@ function writeStatsToSheet(sheet, players, stats, title) {
        .setFontColor('#ffffff');
 
   // ── Rows 3+: Stats ────────────────────────────────────────
-  let sheetRow = 3; // track actual sheet row (1-indexed)
+  let sheetRow = 3;
 
   STAT_ROWS.forEach(row => {
     if (row.section) {
-      // Section divider row
       const sectionLabel = [row.section];
-      // Pad to full width so merge works cleanly
       for (let i = 1; i < numCols; i++) sectionLabel.push('');
       sheet.appendRow(sectionLabel);
       sheet.getRange(sheetRow, 1, 1, numCols)
@@ -293,19 +302,19 @@ function writeStatsToSheet(sheet, players, stats, title) {
            .setBackground('#4a6070')
            .setFontSize(9);
     } else {
-      // Gather raw values
-      const rawVals = players.map(p => {
+      // Gather raw values using sorted order
+      const rawVals = sorted.map(function(p) {
         const s = stats[p];
         return (s && s[row.key] !== undefined && s[row.key] !== null) ? +s[row.key] : null;
       });
 
       // Determine best/worst for coloring
       let bestVal = null, worstVal = null;
-      if (row.dir && players.length > 1) {
-        const defined = rawVals.filter(v => v !== null);
-        if (defined.length > 0) {
-          const maxV = Math.max(...defined);
-          const minV = Math.min(...defined);
+      if (row.dir && sorted.length > 1) {
+        const defined = rawVals.filter(function(v) { return v !== null; });
+        if (defined.length > 1) {
+          const maxV = Math.max.apply(null, defined);
+          const minV = Math.min.apply(null, defined);
           if (maxV !== minV) {
             bestVal  = row.dir === 'high' ? maxV : minV;
             worstVal = row.dir === 'high' ? minV : maxV;
@@ -315,7 +324,7 @@ function writeStatsToSheet(sheet, players, stats, title) {
 
       // Build display values
       const cells = [row.label];
-      rawVals.forEach(v => {
+      rawVals.forEach(function(v) {
         if (v === null) { cells.push('—'); return; }
         if (row.fmt === '$') cells.push('$' + Math.round(v));
         else                  cells.push(Math.round(v));
@@ -323,15 +332,15 @@ function writeStatsToSheet(sheet, players, stats, title) {
       sheet.appendRow(cells);
 
       // Center-align numeric columns
-      if (players.length > 0) {
-        sheet.getRange(sheetRow, 2, 1, players.length).setHorizontalAlignment('center');
+      if (sorted.length > 0) {
+        sheet.getRange(sheetRow, 2, 1, sorted.length).setHorizontalAlignment('center');
       }
 
       // Apply green/red coloring per cell
-      players.forEach((p, i) => {
+      sorted.forEach(function(p, i) {
         const v = rawVals[i];
         if (v === null) return;
-        const col = i + 2; // column index (1-based, col 1 is label)
+        const col = i + 2;
         if (bestVal  !== null && v === bestVal)  sheet.getRange(sheetRow, col).setFontColor('#27ae60').setFontWeight('bold');
         if (worstVal !== null && v === worstVal) sheet.getRange(sheetRow, col).setFontColor('#e74c3c').setFontWeight('bold');
       });
@@ -343,13 +352,12 @@ function writeStatsToSheet(sheet, players, stats, title) {
   try { sheet.setFrozenRows(2); } catch(_) {}
   try { sheet.autoResizeColumns(1, numCols); } catch(_) {}
 
-  // Alternate row shading on data rows (skip title + header)
+  // Alternate row shading
   const dataStart = 3;
   const dataEnd   = sheetRow - 1;
   for (let r = dataStart; r <= dataEnd; r++) {
-    // Only shade non-section rows (section rows are already colored)
     const bg = sheet.getRange(r, 1).getBackground();
-    if (bg === '#4a6070' || bg === '#4a6070'.toLowerCase()) continue; // skip section rows
+    if (bg === '#4a6070' || bg === '#4a6070'.toLowerCase()) continue;
     if (r % 2 === 0) {
       sheet.getRange(r, 1, 1, numCols).setBackground('#f4f7f6');
     }

@@ -225,36 +225,36 @@ function writeStatsToSheet(sheet, players, stats, title) {
 
   const STAT_ROWS = [
     { section:'POINTS DISTRIBUTION' },
-    { key:'totalTournamentPoints', label:'Total Tournament Points' },
-    { key:'tp5',  label:'Games Earning 5 T-Points' },
-    { key:'tp4',  label:'Games Earning 4 T-Points' },
-    { key:'tp3',  label:'Games Earning 3 T-Points' },
-    { key:'tp2',  label:'Games Earning 2 T-Points' },
-    { key:'tp1',  label:'Games Earning 1 T-Point'  },
+    { key:'totalTournamentPoints', label:'Total Tournament Points',          dir:'high' },
+    { key:'tp5',  label:'Games Earning 5 T-Points',                          dir:'high' },
+    { key:'tp4',  label:'Games Earning 4 T-Points',                          dir:'high' },
+    { key:'tp3',  label:'Games Earning 3 T-Points',                          dir:'high' },
+    { key:'tp2',  label:'Games Earning 2 T-Points',                          dir:null   },
+    { key:'tp1',  label:'Games Earning 1 T-Point',                           dir:'low'  },
     { section:'FINANCIALS' },
-    { key:'moneyLosses',     label:'Money From Losses',        fmt:'$' },
-    { key:'moneyPenalties',  label:'Money From Penalties',     fmt:'$' },
-    { key:'totalPot',        label:'Total Money in Pot',       fmt:'$' },
-    { key:'mostMoneyOneGame',label:'Most Money Paid One Game', fmt:'$' },
+    { key:'moneyLosses',      label:'Money From Losses',       fmt:'$',      dir:'low'  },
+    { key:'moneyPenalties',   label:'Money From Penalties',    fmt:'$',      dir:'low'  },
+    { key:'totalPot',         label:'Total Money in Pot',      fmt:'$',      dir:'low'  },
+    { key:'mostMoneyOneGame', label:'Most Money Paid One Game',fmt:'$',      dir:'low'  },
     { section:'GENERAL SCORING' },
-    { key:'avgGamePoints',  label:'Average Game Points' },
-    { key:'totalGamePoints',label:'Total Game Points'   },
-    { key:'totalSets',      label:'Total Number of Sets'   },
-    { key:'totalTricks',    label:'Total Number of Tricks' },
+    { key:'avgGamePoints',    label:'Average Game Points',                   dir:'high' },
+    { key:'totalGamePoints',  label:'Total Game Points',                     dir:'high' },
+    { key:'totalSets',        label:'Total Number of Sets',                  dir:'low'  },
+    { key:'totalTricks',      label:'Total Number of Tricks',                dir:'high' },
     { section:'GAME RECORDS' },
-    { key:'mostSetsOneGame',   label:'Most Sets in One Game'    },
-    { key:'leastSetsOneGame',  label:'Least Sets in One Game'   },
-    { key:'mostTricksOneGame', label:'Most Tricks in One Game'  },
-    { key:'leastTricksOneGame',label:'Least Tricks in One Game' },
-    { key:'lowestScore',       label:'Lowest Score Ever'        },
-    { key:'highestScore',      label:'Highest Score Ever'       },
+    { key:'mostSetsOneGame',    label:'Most Sets in One Game',               dir:'low'  },
+    { key:'leastSetsOneGame',   label:'Least Sets in One Game',              dir:'high' },
+    { key:'mostTricksOneGame',  label:'Most Tricks in One Game',             dir:'high' },
+    { key:'leastTricksOneGame', label:'Least Tricks in One Game',            dir:'low'  },
+    { key:'lowestScore',        label:'Lowest Score Ever',                   dir:'low'  },
+    { key:'highestScore',       label:'Highest Score Ever',                  dir:'high' },
     { section:'STREAKS' },
-    { key:'longestWinStreakGames',  label:'Longest Winning Streak (Games)'   },
-    { key:'longestLoseStreakGames', label:'Longest Losing Streak (Games)'    },
-    { key:'longestWinStreakHands',  label:'Longest Winning Streak (Hands)'   },
-    { key:'longestLoseStreakHands', label:'Longest Losing Streak (Hands)'    },
-    { key:'longestStreakNoPay',     label:'Longest Streak Without Paying'    },
-    { key:'longestStreakPay',       label:'Longest Streak With Paying'       },
+    { key:'longestWinStreakGames',  label:'Longest Winning Streak (Games)',        dir:'high' },
+    { key:'longestLoseStreakGames', label:'Longest Losing Streak (Games)',         dir:'low'  },
+    { key:'longestWinStreakHands',  label:'Longest Winning Streak (Across Games)', dir:'high' },
+    { key:'longestLoseStreakHands', label:'Longest Losing Streak (Across Games)',  dir:'low'  },
+    { key:'longestStreakNoPay',     label:'Longest Streak Without Paying',         dir:'high' },
+    { key:'longestStreakPay',       label:'Longest Streak With Paying',            dir:'low'  },
   ];
 
   const numCols = players.length + 1; // stat label + one col per player
@@ -293,24 +293,48 @@ function writeStatsToSheet(sheet, players, stats, title) {
            .setBackground('#4a6070')
            .setFontSize(9);
     } else {
-      // Data row
+      // Gather raw values
+      const rawVals = players.map(p => {
+        const s = stats[p];
+        return (s && s[row.key] !== undefined && s[row.key] !== null) ? +s[row.key] : null;
+      });
+
+      // Determine best/worst for coloring
+      let bestVal = null, worstVal = null;
+      if (row.dir && players.length > 1) {
+        const defined = rawVals.filter(v => v !== null);
+        if (defined.length > 0) {
+          const maxV = Math.max(...defined);
+          const minV = Math.min(...defined);
+          if (maxV !== minV) {
+            bestVal  = row.dir === 'high' ? maxV : minV;
+            worstVal = row.dir === 'high' ? minV : maxV;
+          }
+        }
+      }
+
+      // Build display values
       const cells = [row.label];
-      players.forEach(p => {
-        const s   = stats[p];
-        let val   = (s && s[row.key] !== undefined && s[row.key] !== null) ? s[row.key] : '—';
-        if (row.fmt === '$' && val !== '—') val = '$' + (+val).toFixed(2);
-        cells.push(val);
+      rawVals.forEach(v => {
+        if (v === null) { cells.push('—'); return; }
+        if (row.fmt === '$') cells.push('$' + Math.round(v));
+        else                  cells.push(Math.round(v));
       });
       sheet.appendRow(cells);
 
-      // Right-align numeric columns
+      // Center-align numeric columns
       if (players.length > 0) {
         sheet.getRange(sheetRow, 2, 1, players.length).setHorizontalAlignment('center');
       }
-      // Money rows: green font
-      if (row.fmt === '$') {
-        sheet.getRange(sheetRow, 2, 1, players.length).setFontColor('#27ae60');
-      }
+
+      // Apply green/red coloring per cell
+      players.forEach((p, i) => {
+        const v = rawVals[i];
+        if (v === null) return;
+        const col = i + 2; // column index (1-based, col 1 is label)
+        if (bestVal  !== null && v === bestVal)  sheet.getRange(sheetRow, col).setFontColor('#27ae60').setFontWeight('bold');
+        if (worstVal !== null && v === worstVal) sheet.getRange(sheetRow, col).setFontColor('#e74c3c').setFontWeight('bold');
+      });
     }
     sheetRow++;
   });
@@ -428,7 +452,7 @@ function calcStatsGAS(games) {
   Object.keys(stats).forEach(name => {
     const s  = stats[name];
     const pg = playerGames[name];
-    s.avgGamePoints       = s._games ? +(s.totalGamePoints / s._games).toFixed(1) : 0;
+    s.avgGamePoints       = s._games ? Math.round(s.totalGamePoints / s._games) : 0;
     if (s.leastSetsOneGame   === Infinity)  s.leastSetsOneGame   = 0;
     if (s.leastTricksOneGame === Infinity)  s.leastTricksOneGame = 0;
     if (s.lowestScore        === Infinity)  s.lowestScore        = 0;

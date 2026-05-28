@@ -262,6 +262,10 @@ select.settings-input option{background:#fff;color:var(--text)}
 .text-muted{color:var(--muted)}
 .fw-bold{font-weight:700}
 
+/* ===== STATS CONTAINER ===== */
+.stats-container{max-width:1200px;margin:12px auto;background:#fff;padding:15px;border-radius:12px;box-shadow:0 4px 15px rgba(0,0,0,.1);overflow:hidden}
+.stats-container .section-label{padding:0 0 8px}
+
 /* ===== RESPONSIVE ===== */
 @media(min-width:480px){
   .home-actions{grid-template-columns:1fr 1fr 1fr}
@@ -321,16 +325,18 @@ select.settings-input option{background:#fff;color:var(--text)}
       <div class="progress-row" id="home-progress"></div>
     </div>
 
-    <div class="section-label">Tournament Standings</div>
-    <div class="stats-outer" id="standings-outer">
-      <div class="empty-state" id="standings-empty">
-        <svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" stroke="#3a5040" stroke-width="2" fill="none"/><text x="24" y="30" text-anchor="middle" fill="#3a5040" font-size="20">&#9827;</text></svg>
-        <p>No tournament data yet.<br>Start a new game to begin!</p>
+    <div class="stats-container">
+      <div class="section-label">Tournament Standings</div>
+      <div class="stats-outer" id="standings-outer">
+        <div class="empty-state" id="standings-empty">
+          <svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" stroke="#dde3e8" stroke-width="2" fill="none"/><text x="24" y="30" text-anchor="middle" fill="#dde3e8" font-size="20">&#9827;</text></svg>
+          <p>No tournament data yet.<br>Start a new game to begin!</p>
+        </div>
+        <table class="stats-table" id="standings-table" style="display:none">
+          <thead><tr id="standings-player-row"></tr></thead>
+          <tbody id="standings-body"></tbody>
+        </table>
       </div>
-      <table class="stats-table" id="standings-table" style="display:none">
-        <thead><tr id="standings-player-row"></tr></thead>
-        <tbody id="standings-body"></tbody>
-      </table>
     </div>
   </div>
 </div>
@@ -408,15 +414,17 @@ select.settings-input option{background:#fff;color:var(--text)}
       <div style="padding:12px 16px 0">
         <div class="lb-filter-row" id="lb-filter-row"></div>
       </div>
-      <div class="stats-outer">
-        <div class="empty-state" id="lb-empty">
-          <svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" stroke="#3a5040" stroke-width="2" fill="none"/><text x="24" y="30" text-anchor="middle" fill="#3a5040" font-size="20">&#9827;</text></svg>
-          <p>No all-time data yet.</p>
+      <div class="stats-container" style="margin:8px 12px 12px">
+        <div class="stats-outer">
+          <div class="empty-state" id="lb-empty">
+            <svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" stroke="#dde3e8" stroke-width="2" fill="none"/><text x="24" y="30" text-anchor="middle" fill="#dde3e8" font-size="20">&#9827;</text></svg>
+            <p>No all-time data yet.</p>
+          </div>
+          <table class="stats-table" id="lb-table" style="display:none">
+            <thead><tr id="lb-player-row"></tr></thead>
+            <tbody id="lb-body"></tbody>
+          </table>
         </div>
-        <table class="stats-table" id="lb-table" style="display:none">
-          <thead><tr id="lb-player-row"></tr></thead>
-          <tbody id="lb-body"></tbody>
-        </table>
       </div>
     </div>
     <div class="modal-footer" id="lb-footer">
@@ -730,11 +738,11 @@ function blankPlayerStats() {
     // Streaks
     longestWinStreakGames:0, longestLoseStreakGames:0,
     longestWinStreakHands:0, longestLoseStreakHands:0,
-    longestWinStreakAcross:0, longestLoseStreakAcross:0,
-    longestStreakNoPay:0, longestStreakPay:0,
+    longestStreakNoPay:0,    longestStreakPay:0,
+    longestWinStreakInGame:0, longestLoseStreakInGame:0,
     // Internal tracking
     _gameScores:[], _gameResults:[], _handResults:[], _payResults:[],
-    _curWinGames:0, _curLoseGames:0, _curWinHands:0, _curLoseHands:0,
+    _curWinGames:0, _curLoseGames:0,
     _curNoPay:0, _curPay:0
   };
 }
@@ -793,7 +801,9 @@ function calcStats(games, scope) {
       s.highestScore = Math.max(s.highestScore, gameScore);
 
       // Per-round: recompute made/score from bid & tricks
+      // Also track in-game streaks (within this single game only)
       let gameSets = 0, gameTricks = 0;
+      let inGameWin = 0, inGameLose = 0, bestInGameWin = 0, bestInGameLose = 0;
       rounds.forEach(rd => {
         const prd = (rd.scores || []).find(x => x.name === name);
         if (!prd) return;
@@ -801,6 +811,8 @@ function calcStats(games, scope) {
         const tricks = Number(prd.tricks) || 0;
         if (!made) gameSets++;
         gameTricks += tricks;
+
+        // Across-games hand streak
         if (made) {
           pg.handWinStreak++; pg.handLoseStreak = 0;
           pg.bestHandWin = Math.max(pg.bestHandWin, pg.handWinStreak);
@@ -808,23 +820,47 @@ function calcStats(games, scope) {
           pg.handLoseStreak++; pg.handWinStreak = 0;
           pg.bestHandLose = Math.max(pg.bestHandLose, pg.handLoseStreak);
         }
+
+        // In-game streak (resets each game)
+        if (made) {
+          inGameWin++; inGameLose = 0;
+          bestInGameWin = Math.max(bestInGameWin, inGameWin);
+        } else {
+          inGameLose++; inGameWin = 0;
+          bestInGameLose = Math.max(bestInGameLose, inGameLose);
+        }
       });
 
-      s.totalSets       += gameSets;
-      s.totalTricks     += gameTricks;
-      s.mostSetsOneGame   = Math.max(s.mostSetsOneGame,   gameSets);
-      s.leastSetsOneGame  = Math.min(s.leastSetsOneGame,  gameSets);
+      s.totalSets        += gameSets;
+      s.totalTricks      += gameTricks;
+      s.mostSetsOneGame    = Math.max(s.mostSetsOneGame,   gameSets);
+      s.leastSetsOneGame   = Math.min(s.leastSetsOneGame,  gameSets);
       s.mostTricksOneGame  = Math.max(s.mostTricksOneGame,  gameTricks);
       s.leastTricksOneGame = Math.min(s.leastTricksOneGame, gameTricks);
 
-      // Game win/lose streak
-      const rank = Object.values(tPoints || {}).filter(v => Number(v) > tp).length;
-      if (rank === 0) {
+      // In-game streak records (best single-game streak ever)
+      s.longestWinStreakInGame  = Math.max(s.longestWinStreakInGame,  bestInGameWin);
+      s.longestLoseStreakInGame = Math.max(s.longestLoseStreakInGame, bestInGameLose);
+
+      // ── Game-level win/lose streak ────────────────────────────
+      // Win  = sole 1st place (highest game score, no tie)
+      // Loss = tied for or holding the lowest game score in this game
+      // Tie for last still counts as a loss for streak purposes.
+      const minScore = Math.min(...Object.values(gameScores));
+      const maxScore = Math.max(...Object.values(gameScores));
+      const isWin  = gameScore === maxScore &&
+                     Object.values(gameScores).filter(v => v === maxScore).length === 1;
+      const isLoss = gameScore === minScore; // ties for last = loss for everyone at that score
+
+      if (isWin) {
         s._curWinGames++; s._curLoseGames = 0;
         s.longestWinStreakGames = Math.max(s.longestWinStreakGames, s._curWinGames);
-      } else if (rank === players.length - 1) {
+      } else if (isLoss) {
         s._curLoseGames++; s._curWinGames = 0;
         s.longestLoseStreakGames = Math.max(s.longestLoseStreakGames, s._curLoseGames);
+      } else {
+        // Middle finish — reset both streaks
+        s._curWinGames = 0; s._curLoseGames = 0;
       }
 
       // Pay streaks
@@ -887,12 +923,14 @@ const STAT_ROWS = [
   { key:'lowestScore',        label:'Lowest Score Ever',          fmt:'num',   dir:'high' },
   { key:'highestScore',       label:'Highest Score Ever',         fmt:'num',   dir:'high' },
   { section:'STREAKS' },
-  { key:'longestWinStreakGames',  label:'Longest Winning Streak (Games)',        fmt:'num', dir:'high' },
-  { key:'longestLoseStreakGames', label:'Longest Losing Streak (Games)',         fmt:'num', dir:'low'  },
-  { key:'longestWinStreakHands',  label:'Longest Winning Streak (Across Games)', fmt:'num', dir:'high' },
-  { key:'longestLoseStreakHands', label:'Longest Losing Streak (Across Games)',  fmt:'num', dir:'low'  },
-  { key:'longestStreakNoPay',     label:'Longest Streak Without Paying',         fmt:'num', dir:'high' },
-  { key:'longestStreakPay',       label:'Longest Streak With Paying',            fmt:'num', dir:'low'  },
+  { key:'longestWinStreakGames',   label:'Longest Winning Streak (Games)',        fmt:'num', dir:'high' },
+  { key:'longestLoseStreakGames',  label:'Longest Losing Streak (Games)',         fmt:'num', dir:'low'  },
+  { key:'longestWinStreakHands',   label:'Longest Winning Streak (Across Games)', fmt:'num', dir:'high' },
+  { key:'longestLoseStreakHands',  label:'Longest Losing Streak (Across Games)',  fmt:'num', dir:'low'  },
+  { key:'longestWinStreakInGame',  label:'Longest Winning Streak (in 1 Game)',    fmt:'num', dir:'high' },
+  { key:'longestLoseStreakInGame', label:'Longest Losing Streak (in 1 Game)',     fmt:'num', dir:'low'  },
+  { key:'longestStreakNoPay',      label:'Longest Streak Without Paying',         fmt:'num', dir:'high' },
+  { key:'longestStreakPay',        label:'Longest Streak With Paying',            fmt:'num', dir:'low'  },
 ];
 
 function formatStat(val, fmt) {

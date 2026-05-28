@@ -260,12 +260,14 @@ function writeStatsToSheet(sheet, players, stats, title) {
     { key:'lowestScore',        label:'Lowest Score Ever',                   dir:'high' },
     { key:'highestScore',       label:'Highest Score Ever',                  dir:'high' },
     { section:'STREAKS' },
-    { key:'longestWinStreakGames',  label:'Longest Winning Streak (Games)',        dir:'high' },
-    { key:'longestLoseStreakGames', label:'Longest Losing Streak (Games)',         dir:'low'  },
-    { key:'longestWinStreakHands',  label:'Longest Winning Streak (Across Games)', dir:'high' },
-    { key:'longestLoseStreakHands', label:'Longest Losing Streak (Across Games)',  dir:'low'  },
-    { key:'longestStreakNoPay',     label:'Longest Streak Without Paying',         dir:'high' },
-    { key:'longestStreakPay',       label:'Longest Streak With Paying',            dir:'low'  },
+    { key:'longestWinStreakGames',   label:'Longest Winning Streak (Games)',        dir:'high' },
+    { key:'longestLoseStreakGames',  label:'Longest Losing Streak (Games)',         dir:'low'  },
+    { key:'longestWinStreakHands',   label:'Longest Winning Streak (Across Games)', dir:'high' },
+    { key:'longestLoseStreakHands',  label:'Longest Losing Streak (Across Games)',  dir:'low'  },
+    { key:'longestWinStreakInGame',  label:'Longest Winning Streak (in 1 Game)',    dir:'high' },
+    { key:'longestLoseStreakInGame', label:'Longest Losing Streak (in 1 Game)',     dir:'low'  },
+    { key:'longestStreakNoPay',      label:'Longest Streak Without Paying',         dir:'high' },
+    { key:'longestStreakPay',        label:'Longest Streak With Paying',            dir:'low'  },
   ];
 
   const numCols = sorted.length + 1; // stat label + one col per player
@@ -417,8 +419,9 @@ function calcStatsGAS(games) {
       s.highestScore     = Math.max(s.highestScore, gameScore);
       s._games++;
 
-      // ── Per-round stats ──
+      // ── Per-round stats + in-game streaks ──
       let gameSets = 0, gameTricks = 0;
+      let inGameWin = 0, inGameLose = 0, bestInGameWin = 0, bestInGameLose = 0;
       (rounds || []).forEach(rd => {
         const prd = (rd.scores || []).find(x => x.name === name);
         if (!prd) return;
@@ -426,8 +429,12 @@ function calcStatsGAS(games) {
         const tricks = Number(prd.tricks) || 0;
         if (!made) gameSets++;
         gameTricks += tricks;
+        // Across-games hand streak
         if (made) { pg.hw++; pg.hl = 0; pg.bw = Math.max(pg.bw, pg.hw); }
         else      { pg.hl++; pg.hw = 0; pg.bl = Math.max(pg.bl, pg.hl); }
+        // In-game streak (resets each game)
+        if (made) { inGameWin++; inGameLose = 0; bestInGameWin  = Math.max(bestInGameWin,  inGameWin);  }
+        else      { inGameLose++; inGameWin = 0; bestInGameLose = Math.max(bestInGameLose, inGameLose); }
       });
 
       s.totalSets        += gameSets;
@@ -436,15 +443,26 @@ function calcStatsGAS(games) {
       s.leastSetsOneGame   = Math.min(s.leastSetsOneGame,  gameSets);
       s.mostTricksOneGame  = Math.max(s.mostTricksOneGame,  gameTricks);
       s.leastTricksOneGame = Math.min(s.leastTricksOneGame, gameTricks);
+      s.longestWinStreakInGame  = Math.max(s.longestWinStreakInGame,  bestInGameWin);
+      s.longestLoseStreakInGame = Math.max(s.longestLoseStreakInGame, bestInGameLose);
 
       // ── Game win/lose streaks ──
-      const rank = Object.values(tPoints || {}).filter(v => Number(v) > tp).length;
-      if (rank === 0) {
+      // Win  = sole highest game score (no tie for first)
+      // Loss = tied for or at the lowest game score (tie for last = loss for all at that score)
+      const gsVals   = Object.values(gameScores);
+      const minScore = Math.min.apply(null, gsVals);
+      const maxScore = Math.max.apply(null, gsVals);
+      const isWin    = gameScore === maxScore && gsVals.filter(v => v === maxScore).length === 1;
+      const isLoss   = gameScore === minScore;
+
+      if (isWin) {
         s._cw++; s._cl = 0;
-        s.longestWinStreakGames  = Math.max(s.longestWinStreakGames,  s._cw);
-      } else if (rank === players.length - 1) {
+        s.longestWinStreakGames  = Math.max(s.longestWinStreakGames, s._cw);
+      } else if (isLoss) {
         s._cl++; s._cw = 0;
         s.longestLoseStreakGames = Math.max(s.longestLoseStreakGames, s._cl);
+      } else {
+        s._cw = 0; s._cl = 0;
       }
 
       // ── Pay streaks ──
@@ -479,15 +497,16 @@ function calcStatsGAS(games) {
 function blankStats(name) {
   return {
     name, _games:0, _cw:0, _cl:0,
-    totalTournamentPoints:0, tp5:0,tp4:0,tp3:0,tp2:0,tp1:0,
+    totalTournamentPoints:0, tp5:0, tp4:0, tp3:0, tp2:0, tp1:0,
     moneyLosses:0, moneyPenalties:0, totalPot:0, mostMoneyOneGame:0,
     avgGamePoints:0, totalGamePoints:0, totalSets:0, totalTricks:0,
-    mostSetsOneGame:0, leastSetsOneGame:Infinity,
+    mostSetsOneGame:0,   leastSetsOneGame:Infinity,
     mostTricksOneGame:0, leastTricksOneGame:Infinity,
     lowestScore:Infinity, highestScore:-Infinity,
-    longestWinStreakGames:0,  longestLoseStreakGames:0,
-    longestWinStreakHands:0,  longestLoseStreakHands:0,
-    longestStreakNoPay:0,     longestStreakPay:0
+    longestWinStreakGames:0,   longestLoseStreakGames:0,
+    longestWinStreakHands:0,   longestLoseStreakHands:0,
+    longestWinStreakInGame:0,  longestLoseStreakInGame:0,
+    longestStreakNoPay:0,      longestStreakPay:0
   };
 }
 

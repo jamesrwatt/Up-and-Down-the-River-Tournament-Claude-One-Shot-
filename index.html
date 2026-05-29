@@ -264,6 +264,8 @@ select.settings-input option{background:#fff;color:var(--text)}
 
 /* ===== APP CONTAINER (centres + constrains the whole app) ===== */
 .app-container{width:100%;max-width:1200px;margin:0 auto;height:100%;display:flex;flex-direction:column;background:var(--surface);box-shadow:0 4px 30px rgba(0,0,0,.15);overflow:hidden;position:relative}
+.app-container *::-webkit-scrollbar{width:0;height:0;background:transparent}
+.app-container *{scrollbar-width:none;-ms-overflow-style:none}
 @media(min-width:1220px){
   body{background:#e8edf0;align-items:center;justify-content:center}
   .app-container{border-radius:16px;height:calc(100vh - 32px);margin:16px auto}

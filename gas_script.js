@@ -262,10 +262,10 @@ function writeStatsToSheet(sheet, players, stats, title) {
     { section:'STREAKS' },
     { key:'longestWinStreakGames',   label:'Longest Winning Streak (Games)',        dir:'high' },
     { key:'longestLoseStreakGames',  label:'Longest Losing Streak (Games)',         dir:'low'  },
-    { key:'longestWinStreakHands',   label:'Longest Winning Streak (Across Games)', dir:'high' },
-    { key:'longestLoseStreakHands',  label:'Longest Losing Streak (Across Games)',  dir:'low'  },
     { key:'longestWinStreakInGame',  label:'Longest Winning Streak (in 1 Game)',    dir:'high' },
     { key:'longestLoseStreakInGame', label:'Longest Losing Streak (in 1 Game)',     dir:'low'  },
+    { key:'longestWinStreakHands',   label:'Longest Winning Streak (Across Games)', dir:'high' },
+    { key:'longestLoseStreakHands',  label:'Longest Losing Streak (Across Games)',  dir:'low'  },
     { key:'longestStreakNoPay',      label:'Longest Streak Without Paying',         dir:'high' },
     { key:'longestStreakPay',        label:'Longest Streak With Paying',            dir:'low'  },
   ];

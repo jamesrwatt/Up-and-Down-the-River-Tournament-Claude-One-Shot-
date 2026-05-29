@@ -262,9 +262,12 @@ select.settings-input option{background:#fff;color:var(--text)}
 .text-muted{color:var(--muted)}
 .fw-bold{font-weight:700}
 
-/* ===== STATS CONTAINER ===== */
-.stats-container{max-width:1200px;margin:12px auto;background:#fff;padding:15px;border-radius:12px;box-shadow:0 4px 15px rgba(0,0,0,.1);overflow:hidden}
-.stats-container .section-label{padding:0 0 8px}
+/* ===== APP CONTAINER (centres + constrains the whole app) ===== */
+.app-container{max-width:1200px;margin:0 auto;height:100%;display:flex;flex-direction:column;background:var(--surface);box-shadow:0 4px 30px rgba(0,0,0,.15);overflow:hidden;position:relative}
+@media(min-width:1220px){
+  body{background:#e8edf0;align-items:center;justify-content:center}
+  .app-container{border-radius:16px;height:calc(100vh - 32px);margin:16px auto}
+}
 
 /* ===== RESPONSIVE ===== */
 @media(min-width:480px){
@@ -279,6 +282,7 @@ select.settings-input option{background:#fff;color:var(--text)}
 </style>
 </head>
 <body>
+<div class="app-container">
 
 <!-- ========== HOME SCREEN ========== -->
 <div id="screen-home" class="screen active">
@@ -325,18 +329,16 @@ select.settings-input option{background:#fff;color:var(--text)}
       <div class="progress-row" id="home-progress"></div>
     </div>
 
-    <div class="stats-container">
-      <div class="section-label">Tournament Standings</div>
-      <div class="stats-outer" id="standings-outer">
-        <div class="empty-state" id="standings-empty">
-          <svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" stroke="#dde3e8" stroke-width="2" fill="none"/><text x="24" y="30" text-anchor="middle" fill="#dde3e8" font-size="20">&#9827;</text></svg>
-          <p>No tournament data yet.<br>Start a new game to begin!</p>
-        </div>
-        <table class="stats-table" id="standings-table" style="display:none">
-          <thead><tr id="standings-player-row"></tr></thead>
-          <tbody id="standings-body"></tbody>
-        </table>
+    <div class="section-label">Tournament Standings</div>
+    <div class="stats-outer" id="standings-outer">
+      <div class="empty-state" id="standings-empty">
+        <svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" stroke="#dde3e8" stroke-width="2" fill="none"/><text x="24" y="30" text-anchor="middle" fill="#dde3e8" font-size="20">&#9827;</text></svg>
+        <p>No tournament data yet.<br>Start a new game to begin!</p>
       </div>
+      <table class="stats-table" id="standings-table" style="display:none">
+        <thead><tr id="standings-player-row"></tr></thead>
+        <tbody id="standings-body"></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -404,7 +406,7 @@ select.settings-input option{background:#fff;color:var(--text)}
 
 <!-- ========== MODAL: LEADERBOARD ========== -->
 <div class="modal-overlay" id="modal-leaderboard">
-  <div class="modal-sheet">
+  <div class="modal-sheet" style="max-width:1200px">
     <div class="modal-handle"></div>
     <div class="modal-header">
       <div class="modal-title">&#127942; All-Time Leaderboard</div>
@@ -414,17 +416,15 @@ select.settings-input option{background:#fff;color:var(--text)}
       <div style="padding:12px 16px 0">
         <div class="lb-filter-row" id="lb-filter-row"></div>
       </div>
-      <div class="stats-container" style="margin:8px 12px 12px">
-        <div class="stats-outer">
-          <div class="empty-state" id="lb-empty">
-            <svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" stroke="#dde3e8" stroke-width="2" fill="none"/><text x="24" y="30" text-anchor="middle" fill="#dde3e8" font-size="20">&#9827;</text></svg>
-            <p>No all-time data yet.</p>
-          </div>
-          <table class="stats-table" id="lb-table" style="display:none">
-            <thead><tr id="lb-player-row"></tr></thead>
-            <tbody id="lb-body"></tbody>
-          </table>
+      <div class="stats-outer">
+        <div class="empty-state" id="lb-empty">
+          <svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" stroke="#dde3e8" stroke-width="2" fill="none"/><text x="24" y="30" text-anchor="middle" fill="#dde3e8" font-size="20">&#9827;</text></svg>
+          <p>No all-time data yet.</p>
         </div>
+        <table class="stats-table" id="lb-table" style="display:none">
+          <thead><tr id="lb-player-row"></tr></thead>
+          <tbody id="lb-body"></tbody>
+        </table>
       </div>
     </div>
     <div class="modal-footer" id="lb-footer">
@@ -527,6 +527,8 @@ select.settings-input option{background:#fff;color:var(--text)}
     </div>
   </div>
 </div>
+
+</div><!-- /app-container -->
 
 <!-- ========== TOAST ========== -->
 <div id="toast"></div>
@@ -925,10 +927,10 @@ const STAT_ROWS = [
   { section:'STREAKS' },
   { key:'longestWinStreakGames',   label:'Longest Winning Streak (Games)',        fmt:'num', dir:'high' },
   { key:'longestLoseStreakGames',  label:'Longest Losing Streak (Games)',         fmt:'num', dir:'low'  },
-  { key:'longestWinStreakHands',   label:'Longest Winning Streak (Across Games)', fmt:'num', dir:'high' },
-  { key:'longestLoseStreakHands',  label:'Longest Losing Streak (Across Games)',  fmt:'num', dir:'low'  },
   { key:'longestWinStreakInGame',  label:'Longest Winning Streak (in 1 Game)',    fmt:'num', dir:'high' },
   { key:'longestLoseStreakInGame', label:'Longest Losing Streak (in 1 Game)',     fmt:'num', dir:'low'  },
+  { key:'longestWinStreakHands',   label:'Longest Winning Streak (Across Games)', fmt:'num', dir:'high' },
+  { key:'longestLoseStreakHands',  label:'Longest Losing Streak (Across Games)',  fmt:'num', dir:'low'  },
   { key:'longestStreakNoPay',      label:'Longest Streak Without Paying',         fmt:'num', dir:'high' },
   { key:'longestStreakPay',        label:'Longest Streak With Paying',            fmt:'num', dir:'low'  },
 ];

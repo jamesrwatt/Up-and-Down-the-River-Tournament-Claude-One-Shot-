@@ -105,16 +105,19 @@ body{display:flex;flex-direction:column}
 .home-actions .btn-new-game{grid-column:1/-1}
 
 /* ===== STATS TABLE ===== */
-.section-label{font-size:.85rem;color:var(--primary);letter-spacing:.12em;text-transform:uppercase;padding:14px 16px 8px;font-weight:700;border-top:2px solid var(--border)}
+.section-label{font-size:1rem;color:var(--primary);letter-spacing:.12em;text-transform:uppercase;padding:16px 18px 10px;font-weight:700;border-top:2px solid var(--border)}
 .stats-outer{overflow-x:auto;-webkit-overflow-scrolling:touch}
-.stats-table{width:max-content;min-width:100%;border-collapse:collapse;font-size:1rem}
-.stats-table th,.stats-table td{padding:10px 14px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
-.stats-table th{font-size:.95rem;color:#fff;background:var(--primary);position:sticky;top:0;z-index:2;border-bottom:none;font-weight:700;letter-spacing:.04em}
-.stats-table td:first-child,.stats-table th:first-child{text-align:left;position:sticky;left:0;background:var(--card);z-index:1;padding-left:16px;max-width:280px;font-size:.95rem;color:var(--text2);font-weight:500}
-.stats-table th:first-child{background:var(--primary);z-index:3;color:rgba(255,255,255,.75);font-size:.88rem;font-weight:600}
-.stats-table tr:nth-child(even) td{background:#fafbfc}
-.stats-table tr:hover td{background:#f0f4f7}
-.stats-section-row td{background:var(--card2)!important;color:var(--primary);font-weight:800;font-size:.8rem;letter-spacing:.14em;text-transform:uppercase;padding:10px 16px;border-top:2px solid var(--border2);border-bottom:1px solid var(--border2)}
+.stats-table{width:max-content;min-width:100%;border-collapse:collapse;font-size:1.08rem}
+.stats-table th,.stats-table td{padding:11px 16px;text-align:center;border:1px solid var(--border);white-space:nowrap}
+.stats-table th{font-size:1.05rem;color:#fff;background:var(--primary);position:sticky;top:0;z-index:2;font-weight:700;letter-spacing:.04em;border-color:rgba(255,255,255,.15)}
+/* First column: stat label — fixed width, left-aligned */
+.stats-table td:first-child,.stats-table th:first-child{text-align:left;position:sticky;left:0;background:var(--card);z-index:1;padding-left:18px;width:260px;min-width:260px;font-size:1rem;color:var(--text2);font-weight:500;border-right:2px solid var(--border2)}
+.stats-table th:first-child{background:var(--primary);z-index:3;color:rgba(255,255,255,.8);font-size:.95rem;font-weight:700;border-right-color:rgba(255,255,255,.25)}
+/* Player columns: uniform width set via JS on the <col> elements */
+.stats-table col.player-col{width:var(--player-col-w,140px)}
+.stats-table tr:nth-child(even) td{background:#f6f8fa}
+.stats-table tr:hover td{background:#edf2f7}
+.stats-section-row td{background:var(--card2)!important;color:var(--primary);font-weight:800;font-size:.88rem;letter-spacing:.14em;text-transform:uppercase;padding:11px 18px;border-top:2px solid var(--border2);border-bottom:2px solid var(--border2)}
 .stats-table td.highlight{color:var(--success);font-weight:700}
 .stats-table td.mono{font-family:var(--font-mono)}
 .stats-table td.stat-best{color:var(--success)!important;font-weight:700!important}
@@ -943,6 +946,14 @@ function formatStat(val, fmt) {
   return String(Math.round(+val));                       // all others whole numbers
 }
 
+// ── Canvas text measurer ──────────────────────────────────────
+function measureTextWidth(text, font) {
+  if (!measureTextWidth._canvas) measureTextWidth._canvas = document.createElement('canvas');
+  const ctx = measureTextWidth._canvas.getContext('2d');
+  ctx.font = font || '700 1.05rem system-ui,-apple-system,sans-serif';
+  return ctx.measureText(text).width;
+}
+
 function renderStatsTable(players, statsObj, tableEl, playerRowEl, bodyEl, emptyEl) {
   if (!players || players.length === 0) {
     tableEl.style.display = 'none';
@@ -956,19 +967,37 @@ function renderStatsTable(players, statsObj, tableEl, playerRowEl, bodyEl, empty
   const sorted = [...players].sort((a, b) => {
     const sa = statsObj[a] || {};
     const sb = statsObj[b] || {};
-    // 1. Total Tournament Points — higher is better
     const tpDiff = (sb.totalTournamentPoints || 0) - (sa.totalTournamentPoints || 0);
     if (tpDiff !== 0) return tpDiff;
-    // 2. Total Money in Pot — lower is better (less paid = better rank)
     const potDiff = (sa.totalPot || 0) - (sb.totalPot || 0);
     if (potDiff !== 0) return potDiff;
-    // 3. Average Game Points — higher is better
     return (sb.avgGamePoints || 0) - (sa.avgGamePoints || 0);
   });
 
-  // Header using sorted player order
+  // ── Compute uniform player column width from longest name ──
+  const PAD_PX  = 36;   // total horizontal padding per cell (18px × 2)
+  const MIN_COL = 110;  // never narrower than this
+  const longestPx = Math.max(...sorted.map(p => measureTextWidth(p)));
+  const colW = Math.max(MIN_COL, Math.ceil(longestPx) + PAD_PX);
+
+  // ── Inject <colgroup> — one fixed col for labels, identical cols for players ──
+  const oldCg = tableEl.querySelector('colgroup');
+  if (oldCg) oldCg.remove();
+  const cg = document.createElement('colgroup');
+  const lc = document.createElement('col');
+  lc.style.width = '260px';
+  cg.appendChild(lc);
+  sorted.forEach(() => {
+    const c = document.createElement('col');
+    c.style.width = colW + 'px';
+    cg.appendChild(c);
+  });
+  tableEl.insertBefore(cg, tableEl.firstChild);
+
+  // ── Header ──
   playerRowEl.innerHTML = `<th>Statistic</th>` + sorted.map(p => `<th>${p}</th>`).join('');
 
+  // ── Body ──
   let html = '';
   STAT_ROWS.forEach(row => {
     if (row.section) {
@@ -976,13 +1005,11 @@ function renderStatsTable(players, statsObj, tableEl, playerRowEl, bodyEl, empty
       return;
     }
 
-    // Raw numeric values for each sorted player
     const rawVals = sorted.map(p => {
       const s = statsObj[p];
       return (s && s[row.key] !== undefined && s[row.key] !== null) ? +s[row.key] : null;
     });
 
-    // Determine best / worst (only when values differ)
     let bestVal = null, worstVal = null;
     if (row.dir && sorted.length > 1) {
       const defined = rawVals.filter(v => v !== null);
@@ -999,13 +1026,9 @@ function renderStatsTable(players, statsObj, tableEl, playerRowEl, bodyEl, empty
     const cells = sorted.map((p, i) => {
       const raw = rawVals[i];
       const fmt = formatStat(raw, row.fmt);
-
-      // Build class list — start with mono, add color class
       let cls = 'mono';
       if (raw !== null && bestVal  !== null && raw === bestVal)  cls += ' stat-best';
       else if (raw !== null && worstVal !== null && raw === worstVal) cls += ' stat-worst';
-      // No money-value class needed — font handled by mono
-
       return `<td class="${cls}">${fmt}</td>`;
     }).join('');
 

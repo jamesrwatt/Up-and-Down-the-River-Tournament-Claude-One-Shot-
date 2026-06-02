@@ -96,7 +96,10 @@ body{display:flex;flex-direction:column}
 .sync-dot{display:none} /* replaced by text badge */
 
 /* ===== HOME SCREEN ===== */
-#screen-home .scroll-area{padding:0}
+#screen-home .home-hero{background:var(--primary);padding:14px;border-bottom:3px solid var(--accent);flex-shrink:0}
+#screen-home .section-label{flex-shrink:0}
+/* stats-outer on home fills remaining space and scrolls — enables sticky thead */
+#screen-home .stats-outer{flex:1;min-height:0;overflow:auto}
 .home-hero{background:var(--primary);padding:14px;border-bottom:3px solid var(--accent)}
 .tournament-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:4px 12px 4px 4px;margin-bottom:10px}
 .tournament-dot{width:9px;height:9px;border-radius:50%;background:#2ecc71;animation:pulse 2s infinite;flex-shrink:0}
@@ -108,7 +111,7 @@ body{display:flex;flex-direction:column}
 
 /* ===== STATS TABLE ===== */
 .section-label{font-size:1rem;color:var(--primary);letter-spacing:.12em;text-transform:uppercase;padding:16px 18px 10px;font-weight:700;border-top:2px solid var(--border)}
-.stats-outer{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.stats-outer{overflow:auto;-webkit-overflow-scrolling:touch}
 .stats-table{width:max-content;min-width:100%;border-collapse:collapse;font-size:1.08rem}
 .stats-table th,.stats-table td{padding:11px 16px;text-align:center;border:1px solid var(--border);white-space:nowrap}
 .stats-table th{font-size:1.05rem;color:#fff;background:var(--primary);position:sticky;top:0;z-index:2;font-weight:700;letter-spacing:.04em;border-color:rgba(255,255,255,.15)}
@@ -308,37 +311,37 @@ select.settings-input option{background:#fff;color:var(--text)}
     </div>
   </div>
 
-  <div class="scroll-area">
-    <div class="home-hero">
-      <div id="tournament-badge" class="tournament-badge">
-        <div class="tournament-dot"></div>
-        <span class="tournament-label">Tournament</span>
-        <span class="tournament-value" id="tournament-id-display">—</span>
-        <span class="tournament-label" style="margin-left:8px">Game</span>
-        <span class="tournament-value" id="tournament-game-display">0 / 20</span>
-      </div>
-
-      <div class="home-actions">
-        <button class="btn btn-primary btn-full btn-new-game" id="btn-new-game">&#9654; New Game</button>
-        <button class="btn btn-success" id="btn-resume" style="display:none">&#8635; Resume</button>
-        <button class="btn btn-ghost" id="btn-leaderboard">&#127942; Leaderboard</button>
-        <button class="btn btn-ghost" id="btn-finalize-tournament" style="display:none">&#10003; Finalize</button>
-      </div>
-
-      <div class="progress-row" id="home-progress"></div>
+  <!-- Fixed hero section (no scroll) -->
+  <div class="home-hero">
+    <div id="tournament-badge" class="tournament-badge">
+      <div class="tournament-dot"></div>
+      <span class="tournament-label">Tournament</span>
+      <span class="tournament-value" id="tournament-id-display">—</span>
+      <span class="tournament-label" style="margin-left:8px">Game</span>
+      <span class="tournament-value" id="tournament-game-display">0 / 20</span>
     </div>
 
-    <div class="section-label">Tournament Standings</div>
-    <div class="stats-outer" id="standings-outer">
-      <div class="empty-state" id="standings-empty">
-        <svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" stroke="#dde3e8" stroke-width="2" fill="none"/><text x="24" y="30" text-anchor="middle" fill="#dde3e8" font-size="20">&#9827;</text></svg>
-        <p>No tournament data yet.<br>Start a new game to begin!</p>
-      </div>
-      <table class="stats-table" id="standings-table" style="display:none">
-        <thead><tr id="standings-player-row"></tr></thead>
-        <tbody id="standings-body"></tbody>
-      </table>
+    <div class="home-actions">
+      <button class="btn btn-primary btn-full btn-new-game" id="btn-new-game">&#9654; New Game</button>
+      <button class="btn btn-success" id="btn-resume" style="display:none">&#8635; Resume</button>
+      <button class="btn btn-ghost" id="btn-leaderboard">&#127942; Leaderboard</button>
+      <button class="btn btn-ghost" id="btn-finalize-tournament" style="display:none">&#10003; Finalize</button>
     </div>
+
+    <div class="progress-row" id="home-progress"></div>
+  </div>
+
+  <!-- Standings label + scrollable table fill remaining height -->
+  <div class="section-label">Tournament Standings</div>
+  <div class="stats-outer" id="standings-outer">
+    <div class="empty-state" id="standings-empty">
+      <svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" stroke="#dde3e8" stroke-width="2" fill="none"/><text x="24" y="30" text-anchor="middle" fill="#dde3e8" font-size="20">&#9827;</text></svg>
+      <p>No tournament data yet.<br>Start a new game to begin!</p>
+    </div>
+    <table class="stats-table" id="standings-table" style="display:none">
+      <thead><tr id="standings-player-row"></tr></thead>
+      <tbody id="standings-body"></tbody>
+    </table>
   </div>
 </div>
 
@@ -411,11 +414,11 @@ select.settings-input option{background:#fff;color:var(--text)}
       <div class="modal-title">&#127942; All-Time Leaderboard</div>
       <button class="modal-close" data-close="modal-leaderboard">&times;</button>
     </div>
-    <div class="modal-body" style="padding:0">
-      <div style="padding:12px 16px 0">
+    <div class="modal-body" style="padding:0;overflow:hidden;display:flex;flex-direction:column">
+      <div style="padding:12px 16px 0;flex-shrink:0">
         <div class="lb-filter-row" id="lb-filter-row"></div>
       </div>
-      <div class="stats-outer">
+      <div class="stats-outer" style="flex:1;min-height:0">
         <div class="empty-state" id="lb-empty">
           <svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" stroke="#dde3e8" stroke-width="2" fill="none"/><text x="24" y="30" text-anchor="middle" fill="#dde3e8" font-size="20">&#9827;</text></svg>
           <p>No all-time data yet.</p>
@@ -1722,7 +1725,8 @@ function saveSettings() {
     const pwEl    = document.getElementById('settings-password');
     if (!roleEl) { showToast('Settings elements not found.', 'error'); return; }
 
-    const role = roleEl.value;
+    const prevRole = localStorage.getItem('role') || 'viewer';
+    const role     = roleEl.value;
 
     // Admin requires password verification
     if (role === 'admin') {
@@ -1733,25 +1737,35 @@ function saveSettings() {
       }
     }
 
-    // Persist role
+    // Persist role & GAS URL
     localStorage.setItem('role', role);
-
-    // Persist GAS URL
     GAS_URL = (gasEl ? gasEl.value.trim() : '') || DEFAULT_GAS_URL;
     localStorage.setItem(LS_KEYS.settings, JSON.stringify({ gasUrl: GAS_URL, role }));
 
     // Update permission flags and home UI
     checkPermissions();
-    renderHome();
-
-    // Close modal first — always
     document.getElementById('modal-settings').classList.remove('active');
-
     showToast(`Role set to ${role} ✓`, 'success');
 
-    // For viewer/admin: offer a manual sync via the existing sync button; 
-    // don't auto-pull here so we don't interfere with the UI state.
-    // (Users can tap ↺ Sync Cloud in the leaderboard or wait for next load.)
+    // ── Role-transition side-effects ──────────────────────────
+    const toScorekeeper  = (role === 'scorekeeper' && prevRole !== 'scorekeeper');
+    const fromScorekeeper = (prevRole === 'scorekeeper' && role !== 'scorekeeper');
+
+    if (toScorekeeper) {
+      // Switching TO scorekeeper: wipe local tournament so scorekeeper
+      // starts fresh without stale cloud data.
+      currentGame = null;
+      currentTournament = { id: newTournamentId(), games: [], players: [] };
+      saveLocal();
+      renderHome();
+      showToast('Local tournament cleared for Scorekeeper mode.', 'success');
+    } else if (fromScorekeeper) {
+      // Switching FROM scorekeeper to viewer/admin: pull latest cloud data.
+      renderHome();
+      pullFromCloud(false); // false = show sync feedback toast
+    } else {
+      renderHome();
+    }
   } catch (err) {
     console.error('saveSettings error:', err);
     showToast('Error saving settings.', 'error');

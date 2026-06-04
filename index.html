@@ -199,19 +199,25 @@ body{display:flex;flex-direction:column}
 
 /* ===== SCROLLBARS — visible on desktop (mouse/trackpad) ===== */
 @media(hover:hover) and (pointer:fine){
-  .stats-outer::-webkit-scrollbar{width:8px;height:8px}
-  .stats-outer::-webkit-scrollbar-track{background:var(--card)}
-  .stats-outer::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+  .stats-outer::-webkit-scrollbar{width:10px;height:10px;display:block}
+  .stats-outer::-webkit-scrollbar-track{background:var(--card);border-radius:0 0 6px 6px}
+  .stats-outer::-webkit-scrollbar-thumb{background:var(--border2);border-radius:5px;border:2px solid var(--card)}
   .stats-outer::-webkit-scrollbar-thumb:hover{background:var(--muted)}
   .stats-outer{scrollbar-width:thin;scrollbar-color:var(--border2) var(--card)}
-  #edit-round-body::-webkit-scrollbar{width:8px;height:8px}
+  #edit-round-body::-webkit-scrollbar{width:10px;height:10px;display:block}
   #edit-round-body::-webkit-scrollbar-track{background:var(--card)}
-  #edit-round-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+  #edit-round-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:5px;border:2px solid var(--card)}
   #edit-round-body{scrollbar-width:thin;scrollbar-color:var(--border2) var(--card)}
+}
+/* Force horizontal scrollbar always visible on desktop for leaderboard / edit rounds */
+@media(hover:hover) and (pointer:fine){
+  .stats-outer{overflow-x:scroll!important}
+  #edit-round-body{overflow-x:scroll!important;overflow-y:auto}
 }
 
 /* ===== ENTRY FOOTER ===== */
-.entry-footer{display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:8px}
+.entry-footer{display:flex;justify-content:flex-end;align-items:center;margin-top:6px;gap:8px}
+#btn-back-bids{margin-right:auto}  /* pushes back btn left, submit stays right */
 
 /* ===== ROUNDS HISTORY TABLE ===== */
 .rounds-history{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;background:var(--surface)}
@@ -314,7 +320,29 @@ select.settings-input option{background:#fff;color:var(--text)}
 .text-muted{color:var(--muted)}
 .fw-bold{font-weight:700}
 
-/* ===== GAME SUMMARY TABLE ===== */
+/* Leaderboard + Finalize always render in light style regardless of theme */
+#btn-leaderboard, #btn-finalize-tournament{
+  background:#ffffff!important;color:#2c3e50!important;
+  border:1px solid #c8d0d8!important}
+#btn-leaderboard:hover,#btn-finalize-tournament:hover{
+  background:#f0f4f7!important;border-color:#2c3e50!important}
+
+/* Player column group border in rounds history table */
+.rounds-table .player-border-l{border-left:2px solid var(--border2)!important}
+
+/* Edit-round player card layout */
+.edit-player-card{background:var(--card);border:2px solid var(--border);border-radius:12px;padding:12px 16px;display:flex;flex-direction:column;align-items:center;gap:10px;min-width:110px;flex:1}
+.edit-player-card-name{font-weight:700;font-size:.9rem;color:var(--primary);text-align:center;width:100%}
+.edit-player-inputs{display:flex;flex-direction:column;gap:8px;align-items:center;width:100%}
+.edit-input-group{display:flex;flex-direction:column;align-items:center;gap:4px}
+.edit-input-label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:600;text-align:center}
+.edit-player-grid{display:flex;gap:12px;overflow-x:auto;padding:4px 0 8px;-webkit-overflow-scrolling:touch}
+
+/* Rename players modal */
+.rename-player-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.rename-player-label{font-size:.85rem;color:var(--muted);min-width:60px;text-align:right;font-weight:600}
+.rename-player-input{flex:1;padding:8px 12px;background:var(--card);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:.95rem}
+.rename-player-input:focus{outline:none;border-color:var(--primary)}
 .summary-table{width:100%;border-collapse:collapse;font-size:1.05rem}
 .summary-table th,.summary-table td{padding:12px 16px;border:1px solid var(--border)}
 .summary-table th{background:var(--primary);color:#fff;font-weight:700;text-align:center}
@@ -412,6 +440,7 @@ td.suit-nt{color:var(--muted)}
       <span class="trump-badge" id="trump-badge">&#9829; Hearts</span>
     </div>
     <button class="btn btn-ghost btn-sm" id="btn-edit-round">&#9998; Edit</button>
+    <button class="btn btn-ghost btn-sm" id="btn-rename-players" title="Rename Players">&#9998; Names</button>
   </div>
 
   <div class="entry-panel" id="entry-panel">    <div class="entry-top-row">
@@ -423,7 +452,7 @@ td.suit-nt{color:var(--muted)}
     <div class="entry-grid" id="entry-grid"></div>
 
     <div class="entry-footer">
-      <button class="btn btn-ghost" id="btn-back-bids" style="display:none">&#8592; Bids</button>
+      <button class="btn btn-primary" id="btn-back-bids" style="display:none"><span style="display:inline-block;transform:scaleX(-1)">&#10148;</span> Bids</button>
       <button class="btn btn-primary" id="btn-submit-entry">Submit &#10148;</button>
     </div>
   </div>
@@ -448,7 +477,8 @@ td.suit-nt{color:var(--muted)}
     </div>
     <div class="modal-body">
       <div class="settings-group">
-        <div class="settings-label">Players (one per line or comma-separated)</div>
+        <div class="settings-label">Players (Clockwise with Dealer Last)</div>
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">One per line or comma-separated</div>
         <textarea id="new-game-players" class="settings-input" rows="6"></textarea>
         <div class="player-count-hint" id="player-count-hint">Enter 2–10 players</div>
       </div>
@@ -575,6 +605,22 @@ td.suit-nt{color:var(--muted)}
     <div class="modal-footer">
       <button class="btn btn-ghost" style="flex:1" data-close="modal-edit-round">Cancel</button>
       <button class="btn btn-primary" style="flex:2" id="btn-save-edit">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== MODAL: RENAME PLAYERS ========== -->
+<div class="modal-overlay" id="modal-rename-players">
+  <div class="modal-sheet" style="max-width:440px">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">&#9998; Rename Players</div>
+      <button class="modal-close" data-close="modal-rename-players">&times;</button>
+    </div>
+    <div class="modal-body" id="rename-players-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" style="flex:1" data-close="modal-rename-players">Cancel</button>
+      <button class="btn btn-primary" style="flex:2" id="btn-save-rename">Save Names</button>
     </div>
   </div>
 </div>
@@ -1360,7 +1406,45 @@ function updateEntryTotals(dealerIdx) {
   }
 }
 
-// ── BACK TO BIDS ─────────────────────────────────────────────
+// ── RENAME PLAYERS ───────────────────────────────────────────
+function openRenamePlayers() {
+  const g = currentGame;
+  if (!g) return;
+  let html = '';
+  g.players.forEach((name, i) => {
+    html += `<div class="rename-player-row">
+      <div class="rename-player-label">P${i+1}</div>
+      <input type="text" class="rename-player-input" id="rename-input-${i}" value="${name}" placeholder="Player name">
+    </div>`;
+  });
+  document.getElementById('rename-players-body').innerHTML = html;
+  openModal('modal-rename-players');
+}
+
+function saveRenamedPlayers() {
+  const g = currentGame;
+  if (!g) return;
+  const newNames = g.players.map((_, i) => {
+    const el = document.getElementById(`rename-input-${i}`);
+    return el ? el.value.trim() || g.players[i] : g.players[i];
+  });
+  // Build old→new map
+  const oldToNew = {};
+  g.players.forEach((name, i) => { oldToNew[name] = newNames[i]; });
+  // Update players array
+  g.players = newNames;
+  // Update all completed round scores
+  g.completedRounds.forEach(rd => {
+    rd.scores.forEach(s => { if (oldToNew[s.name]) s.name = oldToNew[s.name]; });
+  });
+  // Update bid/tricks keys (they're indexed by position, no name remapping needed)
+  saveLocal();
+  closeModal('modal-rename-players');
+  renderGameScreen();
+  showToast('Player names updated ✓', 'success');
+}
+
+
 function backToBids() {
   const g = currentGame;
   if (!g || g.phase !== 'tricks') return;
@@ -1373,34 +1457,33 @@ function renderRoundsHistory() {
   const SUIT_COLOR_CLS = { Hearts:'suit-red', Diamonds:'suit-red', Clubs:'suit-blue', Spades:'suit-blue', 'No Trump':'suit-nt' };
   const table = document.getElementById('rounds-table');
 
-  // ── Colgroup: fixed Rnd+Trump, equal player pairs ──
+  // ── Colgroup: fixed Rnd, auto Trump, equal player pairs ──
   const oldCg = table.querySelector('colgroup');
   if (oldCg) oldCg.remove();
   const cg = document.createElement('colgroup');
-  const fixedW = '48px';
   const addCol = (w) => { const c = document.createElement('col'); if (w) c.style.width = w; cg.appendChild(c); };
-  addCol(fixedW); // Rnd
-  addCol(fixedW); // Trump
-  g.players.forEach(() => { addCol(); addCol(); }); // Bid + Score per player (auto = equal share)
+  addCol('48px'); // Rnd — fixed
+  addCol('auto'); // Trump — autofit to content
+  g.players.forEach(() => { addCol(); addCol(); }); // Bid + Score per player
   table.insertBefore(cg, table.firstChild);
-  table.style.tableLayout = 'fixed';
+  table.style.tableLayout = 'auto'; // allow trump to autofit
   table.style.width       = '100%';
 
-  // Column header: Rnd | Trump | [Player centered over colspan=2] ...
-  let headHtml = `<th style="width:${fixedW}">Rnd</th><th style="width:${fixedW}">Trump</th>`;
-  g.players.forEach(p => headHtml += `<th colspan="2" style="text-align:center">${p}</th>`);
+  // Column header: Rnd | Trump | [Player centred over colspan=2] ...
+  let headHtml = `<th>Rnd</th><th>Trump</th>`;
+  g.players.forEach(p => headHtml += `<th colspan="2" style="text-align:center;border-left:2px solid rgba(255,255,255,.25)">${p}</th>`);
   document.getElementById('rounds-header-row').innerHTML = headHtml;
 
   // Sub-header
   let bodyHtml = `<tr class="round-row-header"><td>#</td><td></td>`;
-  g.players.forEach(() => bodyHtml += `<td style="text-align:center">Bid</td><td style="text-align:center">Score</td>`);
+  g.players.forEach(() => bodyHtml += `<td class="player-border-l" style="text-align:center">Bid</td><td style="text-align:center">Score</td>`);
   bodyHtml += `</tr>`;
 
   // Running totals pinned at top
   if (g.completedRounds.length > 0) {
     const totals = calcGameScore(g.completedRounds, g.players);
     bodyHtml += `<tr class="round-total-row"><td>Tot</td><td></td>`;
-    g.players.forEach(p => bodyHtml += `<td></td><td style="text-align:center">${totals[p] ?? 0}</td>`);
+    g.players.forEach(p => bodyHtml += `<td class="player-border-l"></td><td style="text-align:center">${totals[p] ?? 0}</td>`);
     bodyHtml += `</tr>`;
   }
 
@@ -1409,11 +1492,11 @@ function renderRoundsHistory() {
   completed.forEach(rd => {
     const sym     = TRUMP_SYMBOLS[rd.trump] || rd.trump;
     const suitCls = SUIT_COLOR_CLS[rd.trump] || '';
-    let row = `<tr><td style="text-align:center">${rd.roundNum}</td><td class="${suitCls}" style="text-align:center">${sym}</td>`;
+    let row = `<tr><td style="text-align:center">${rd.roundNum}</td><td class="${suitCls}" style="text-align:center;white-space:nowrap">${sym}</td>`;
     g.players.forEach(name => {
       const s = rd.scores.find(x => x.name === name) || {};
       const cls = s.made ? 'made' : 'missed';
-      row += `<td style="text-align:center">${s.bid ?? '—'}</td><td class="score-cell ${cls}" style="text-align:center">${s.score ?? '—'}</td>`;
+      row += `<td class="player-border-l" style="text-align:center">${s.bid ?? '—'}</td><td class="score-cell ${cls}" style="text-align:center">${s.score ?? '—'}</td>`;
     });
     row += `</tr>`;
     bodyHtml += row;
@@ -1474,13 +1557,12 @@ function showGameSummary() {
     .sort((a, b) => b.score - a.score);
 
   let rank = 1, html = '';
+  // Use calcFinancials for exact match with what's stored in stats
+  const financials = calcFinancials(totals, threshold);
   sorted.forEach((p, i) => {
     if (i > 0 && p.score < sorted[i-1].score) rank = i + 1;
-    // Total pot = loss (last place $1) + threshold penalty
-    const isLast  = p.score === minScore && sorted.length > 1;
-    const loss    = isLast ? 1 : 0;
-    const penalty = p.score < threshold ? Math.ceil((threshold - p.score) / 10) : 0;
-    const pen     = loss + penalty;  // matches "Money from Losses + Money from Penalties"
+    // Total pot = exactly what's in the financial record (losses + penalties)
+    const pen      = (financials[p.name] || {}).total || 0;
     const penStyle = pen > 0 ? 'color:var(--accent);font-weight:700' : 'color:var(--success)';
     html += `<tr>
       <td class="sum-rank">${rank}</td>
@@ -1560,23 +1642,29 @@ function openEditRound() {
 
 
 function renderEditForm(idx) {
-  const g = currentGame;
+  const g  = currentGame;
   const rd = g.completedRounds[idx];
-  let html = `<div style="margin-top:12px"><div class="settings-label">Edit Round ${rd.roundNum} (${rd.cards} cards, ${TRUMP_SYMBOLS[rd.trump]||rd.trump})</div>`;
-  html += `<div class="entry-grid" style="margin-top:8px">`;
+  const sym = TRUMP_SYMBOLS[rd.trump] || rd.trump;
+  let html = `<div style="margin-top:12px">
+    <div class="settings-label" style="margin-bottom:10px">Round ${rd.roundNum} &mdash; ${rd.cards} card${rd.cards>1?'s':''} &mdash; ${sym}</div>
+    <div class="edit-player-grid">`;
   rd.scores.forEach((s, i) => {
-    html += `<div class="entry-player-row">
-      <div class="entry-player-name">${s.name}</div>
-      <div style="display:flex;gap:6px;align-items:center">
-        <label style="font-size:.75rem;color:var(--muted)">Bid</label>
-        <input type="number" class="entry-input" id="edit-bid-${i}" value="${s.bid}" min="0" max="${rd.cards}" style="width:50px">
-        <label style="font-size:.75rem;color:var(--muted)">Tricks</label>
-        <input type="number" class="entry-input" id="edit-tricks-${i}" value="${s.tricks}" min="0" max="${rd.cards}" style="width:50px">
+    html += `
+    <div class="edit-player-card">
+      <div class="edit-player-card-name">${s.name}</div>
+      <div class="edit-player-inputs">
+        <div class="edit-input-group">
+          <div class="edit-input-label">Bid</div>
+          <input type="number" class="entry-input" id="edit-bid-${i}" value="${s.bid}" min="0" max="${rd.cards}">
+        </div>
+        <div class="edit-input-group">
+          <div class="edit-input-label">Tricks</div>
+          <input type="number" class="entry-input" id="edit-tricks-${i}" value="${s.tricks}" min="0" max="${rd.cards}">
+        </div>
       </div>
-      <div class="entry-hint" id="edit-hint-${i}">${s.made?'✓ Made':'✗ Set'}</div>
     </div>`;
   });
-  html += '</div></div>';
+  html += `</div></div>`;
   document.getElementById('edit-form').innerHTML = html;
 }
 
@@ -1885,7 +1973,7 @@ function openSettings() {
   if (gasEl)   gasEl.value   = GAS_URL || DEFAULT_GAS_URL;
   if (pwEl)    pwEl.value    = '';
   if (pwRowEl) pwRowEl.style.display = role === 'admin' ? 'block' : 'none';
-  if (themeEl) themeEl.value = localStorage.getItem('theme') || 'auto';
+  if (themeEl) themeEl.value = localStorage.getItem('theme') || 'light';
   generateQRCode();
   document.getElementById('modal-settings').classList.add('active');
 }
@@ -2022,10 +2110,12 @@ function bindEvents() {
   on('btn-start-game',   'click', startGame);
 
   // Game screen
-  on('btn-back-bids',    'click', backToBids);
-  on('btn-submit-entry', 'click', submitEntry);
-  on('btn-save-exit',    'click', () => { saveLocal(); showScreen('home'); renderHome(); });
-  on('btn-edit-round',   'click', openEditRound);
+  on('btn-back-bids',      'click', backToBids);
+  on('btn-submit-entry',   'click', submitEntry);
+  on('btn-save-exit',      'click', () => { saveLocal(); showScreen('home'); renderHome(); });
+  on('btn-edit-round',     'click', openEditRound);
+  on('btn-rename-players', 'click', openRenamePlayers);
+  on('btn-save-rename',    'click', saveRenamedPlayers);
 
   // Settings modal
   on('btn-save-settings',           'click', saveSettings);
@@ -2052,6 +2142,10 @@ function init() {
   loadLocal();
   checkPermissions();
   bindEvents();
+
+  // Apply theme — default to light unless user changed it
+  const savedTheme = localStorage.getItem('theme') || 'light';
+  applyTheme(savedTheme);
 
   // Initial UI state
   if (currentGame) {

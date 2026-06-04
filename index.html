@@ -270,6 +270,19 @@ select.settings-input option{background:#fff;color:var(--text)}
 .text-muted{color:var(--muted)}
 .fw-bold{font-weight:700}
 
+/* ===== GAME SUMMARY TABLE ===== */
+.summary-table{width:100%;border-collapse:collapse;font-size:1.05rem}
+.summary-table th,.summary-table td{padding:12px 16px;border:1px solid var(--border)}
+.summary-table th{background:var(--primary);color:#fff;font-weight:700;text-align:center}
+.summary-table td.sum-rank{text-align:center;font-size:1.2rem}
+.summary-table td.sum-name{font-weight:600;color:var(--text)}
+.summary-table td.sum-num{text-align:center;font-family:var(--font-mono);font-weight:600}
+.summary-table tr:nth-child(even) td{background:#f6f8fa}
+/* Trump suit colours in rounds history table */
+td.suit-red{color:#e74c3c;font-weight:700}
+td.suit-blue{color:var(--primary);font-weight:600}
+td.suit-nt{color:var(--muted)}
+
 /* ===== APP CONTAINER (centres + constrains the whole app) ===== */
 .app-container{width:100%;max-width:1200px;margin:0 auto;height:100%;display:flex;flex-direction:column;background:var(--surface);box-shadow:0 4px 30px rgba(0,0,0,.15);overflow:hidden;position:relative}
 .app-container *::-webkit-scrollbar{width:0;height:0;background:transparent}
@@ -499,17 +512,43 @@ select.settings-input option{background:#fff;color:var(--text)}
 
 <!-- ========== MODAL: EDIT ROUND ========== -->
 <div class="modal-overlay" id="modal-edit-round">
-  <div class="modal-sheet">
+  <div class="modal-sheet" style="max-width:1200px">
     <div class="modal-handle"></div>
     <div class="modal-header">
       <div class="modal-title">&#9998; Edit Round</div>
       <button class="modal-close" data-close="modal-edit-round">&times;</button>
     </div>
-    <div class="modal-body" id="edit-round-body">
-    </div>
+    <div class="modal-body" id="edit-round-body" style="overflow-x:auto"></div>
     <div class="modal-footer">
       <button class="btn btn-ghost" style="flex:1" data-close="modal-edit-round">Cancel</button>
       <button class="btn btn-primary" style="flex:2" id="btn-save-edit">Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== MODAL: GAME SUMMARY ========== -->
+<div class="modal-overlay" id="modal-game-summary">
+  <div class="modal-sheet" style="max-width:560px">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <div class="modal-title">&#127942; Game Summary</div>
+    </div>
+    <div class="modal-body" style="padding:0">
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th style="text-align:left">Player</th>
+            <th>Score</th>
+            <th>T-Pts</th>
+            <th>Pen</th>
+          </tr>
+        </thead>
+        <tbody id="game-summary-body"></tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary btn-full" id="btn-finalize-save">&#10003; Finalize &amp; Save</button>
     </div>
   </div>
 </div>
@@ -729,8 +768,9 @@ function calcTournamentPoints(gameTotals, playerCount) {
 function blankPlayerStats() {
   return {
     name:'',
-    // Points
-    totalTournamentPoints:0, tp5:0, tp4:0, tp3:0, tp2:0, tp1:0,
+    // Points — tp1..tp10 covers all possible player counts
+    totalTournamentPoints:0,
+    tp10:0, tp9:0, tp8:0, tp7:0, tp6:0, tp5:0, tp4:0, tp3:0, tp2:0, tp1:0,
     // Financials
     moneyLosses:0, moneyPenalties:0, totalPot:0, mostMoneyOneGame:0,
     // General
@@ -745,9 +785,7 @@ function blankPlayerStats() {
     longestStreakNoPay:0,    longestStreakPay:0,
     longestWinStreakInGame:0, longestLoseStreakInGame:0,
     // Internal tracking
-    _gameScores:[], _gameResults:[], _handResults:[], _payResults:[],
-    _curWinGames:0, _curLoseGames:0,
-    _curNoPay:0, _curPay:0
+    _gameScores:[], _curWinGames:0, _curLoseGames:0, _curNoPay:0, _curPay:0
   };
 }
 
@@ -784,13 +822,9 @@ function calcStats(games, scope) {
       const tp        = Number((tPoints  || {})[name]) || 0;
       const fin       = (financials || {})[name] || { losses:0, penalties:0, total:0 };
 
-      // T-Points
+      // T-Points — dynamic: tp1..tp10 covers all player counts
       s.totalTournamentPoints += tp;
-      if      (tp === 5) s.tp5++;
-      else if (tp === 4) s.tp4++;
-      else if (tp === 3) s.tp3++;
-      else if (tp === 2) s.tp2++;
-      else if (tp === 1) s.tp1++;
+      if (tp >= 1 && tp <= 10) s[`tp${tp}`] = (s[`tp${tp}`] || 0) + 1;
 
       // Financials
       s.moneyLosses    += Number(fin.losses)    || 0;
@@ -900,42 +934,51 @@ function calcStats(games, scope) {
 }
 
 // ── STAT TABLE ROWS ──────────────────────────────────────────
-// dir: 'high' = higher is better (green), 'low' = lower is better (green), null = neutral
-const STAT_ROWS = [
-  { section:'POINTS DISTRIBUTION' },
-  { key:'totalTournamentPoints', label:'Total Tournament Points',  fmt:'num',   dir:'high' },
-  { key:'tp5',  label:'Games Earning 5 T-Points',                 fmt:'num',   dir:'high' },
-  { key:'tp4',  label:'Games Earning 4 T-Points',                 fmt:'num',   dir:'high' },
-  { key:'tp3',  label:'Games Earning 3 T-Points',                 fmt:'num',   dir:'high' },
-  { key:'tp2',  label:'Games Earning 2 T-Points',                 fmt:'num',   dir:null   },
-  { key:'tp1',  label:'Games Earning 1 T-Point',                  fmt:'num',   dir:'low'  },
-  { section:'FINANCIALS' },
-  { key:'moneyLosses',      label:'Money From Losses',            fmt:'money', dir:'low'  },
-  { key:'moneyPenalties',   label:'Money From Penalties',         fmt:'money', dir:'low'  },
-  { key:'totalPot',         label:'Total Money in Pot',           fmt:'money', dir:'low'  },
-  { key:'mostMoneyOneGame', label:'Most Money Paid One Game',     fmt:'money', dir:'low'  },
-  { section:'GENERAL SCORING' },
-  { key:'avgGamePoints',    label:'Average Game Points',          fmt:'num',   dir:'high' },
-  { key:'totalGamePoints',  label:'Total Game Points',            fmt:'num',   dir:'high' },
-  { key:'totalSets',        label:'Total Number of Sets',         fmt:'num',   dir:'low'  },
-  { key:'totalTricks',      label:'Total Number of Tricks',       fmt:'num',   dir:'high' },
-  { section:'GAME RECORDS' },
-  { key:'mostSetsOneGame',    label:'Most Sets in One Game',      fmt:'num',   dir:'low'  },
-  { key:'leastSetsOneGame',   label:'Least Sets in One Game',     fmt:'num',   dir:'low'  },
-  { key:'mostTricksOneGame',  label:'Most Tricks in One Game',    fmt:'num',   dir:'high' },
-  { key:'leastTricksOneGame', label:'Least Tricks in One Game',   fmt:'num',   dir:'high' },
-  { key:'lowestScore',        label:'Lowest Score Ever',          fmt:'num',   dir:'high' },
-  { key:'highestScore',       label:'Highest Score Ever',         fmt:'num',   dir:'high' },
-  { section:'STREAKS' },
-  { key:'longestWinStreakGames',   label:'Longest Winning Streak (Games)',        fmt:'num', dir:'high' },
-  { key:'longestLoseStreakGames',  label:'Longest Losing Streak (Games)',         fmt:'num', dir:'low'  },
-  { key:'longestWinStreakInGame',  label:'Longest Winning Streak (in 1 Game)',    fmt:'num', dir:'high' },
-  { key:'longestLoseStreakInGame', label:'Longest Losing Streak (in 1 Game)',     fmt:'num', dir:'low'  },
-  { key:'longestWinStreakHands',   label:'Longest Winning Streak (Across Games)', fmt:'num', dir:'high' },
-  { key:'longestLoseStreakHands',  label:'Longest Losing Streak (Across Games)',  fmt:'num', dir:'low'  },
-  { key:'longestStreakNoPay',      label:'Longest Streak Without Paying',         fmt:'num', dir:'high' },
-  { key:'longestStreakPay',        label:'Longest Streak With Paying',            fmt:'num', dir:'low'  },
-];
+// dir: 'high'=higher is better (green), 'low'=lower is better, null=neutral
+function getStatRows(maxPlayers) {
+  const n = Math.max(1, maxPlayers || 5);
+  // T-Points rows: from highest (best) to lowest (worst)
+  const tpRows = [];
+  for (let pts = n; pts >= 1; pts--) {
+    tpRows.push({
+      key:   `tp${pts}`,
+      label: `Games Earning ${pts} T-Point${pts !== 1 ? 's' : ''}`,
+      fmt:   'num',
+      dir:   pts === n ? 'high' : pts === 1 ? 'low' : null
+    });
+  }
+  return [
+    { section:'POINTS DISTRIBUTION' },
+    { key:'totalTournamentPoints', label:'Total Tournament Points',  fmt:'num',   dir:'high' },
+    ...tpRows,
+    { section:'FINANCIALS' },
+    { key:'moneyLosses',      label:'Money From Losses',            fmt:'money', dir:'low'  },
+    { key:'moneyPenalties',   label:'Money From Penalties',         fmt:'money', dir:'low'  },
+    { key:'totalPot',         label:'Total Money in Pot',           fmt:'money', dir:'low'  },
+    { key:'mostMoneyOneGame', label:'Most Money Paid One Game',     fmt:'money', dir:'low'  },
+    { section:'GENERAL SCORING' },
+    { key:'avgGamePoints',    label:'Average Game Points',          fmt:'num',   dir:'high' },
+    { key:'totalGamePoints',  label:'Total Game Points',            fmt:'num',   dir:'high' },
+    { key:'totalSets',        label:'Total Number of Sets',         fmt:'num',   dir:'low'  },
+    { key:'totalTricks',      label:'Total Number of Tricks',       fmt:'num',   dir:'high' },
+    { section:'GAME RECORDS' },
+    { key:'mostSetsOneGame',    label:'Most Sets in One Game',      fmt:'num',   dir:'low'  },
+    { key:'leastSetsOneGame',   label:'Least Sets in One Game',     fmt:'num',   dir:'low'  },
+    { key:'mostTricksOneGame',  label:'Most Tricks in One Game',    fmt:'num',   dir:'high' },
+    { key:'leastTricksOneGame', label:'Least Tricks in One Game',   fmt:'num',   dir:'high' },
+    { key:'lowestScore',        label:'Lowest Score Ever',          fmt:'num',   dir:'high' },
+    { key:'highestScore',       label:'Highest Score Ever',         fmt:'num',   dir:'high' },
+    { section:'STREAKS' },
+    { key:'longestWinStreakGames',   label:'Longest Winning Streak (Games)',        fmt:'num', dir:'high' },
+    { key:'longestLoseStreakGames',  label:'Longest Losing Streak (Games)',         fmt:'num', dir:'low'  },
+    { key:'longestWinStreakInGame',  label:'Longest Winning Streak (in 1 Game)',    fmt:'num', dir:'high' },
+    { key:'longestLoseStreakInGame', label:'Longest Losing Streak (in 1 Game)',     fmt:'num', dir:'low'  },
+    { key:'longestWinStreakHands',   label:'Longest Winning Streak (Across Games)', fmt:'num', dir:'high' },
+    { key:'longestLoseStreakHands',  label:'Longest Losing Streak (Across Games)',  fmt:'num', dir:'low'  },
+    { key:'longestStreakNoPay',      label:'Longest Streak Without Paying',         fmt:'num', dir:'high' },
+    { key:'longestStreakPay',        label:'Longest Streak With Paying',            fmt:'num', dir:'low'  },
+  ];
+}
 
 function formatStat(val, fmt) {
   if (val === null || val === undefined) return '—';
@@ -951,7 +994,7 @@ function measureTextWidth(text, font) {
   return ctx.measureText(text).width;
 }
 
-function renderStatsTable(players, statsObj, tableEl, playerRowEl, bodyEl, emptyEl) {
+function renderStatsTable(players, statsObj, tableEl, playerRowEl, bodyEl, emptyEl, maxPlayers) {
   if (!players || players.length === 0) {
     tableEl.style.display = 'none';
     emptyEl.style.display = 'block';
@@ -959,6 +1002,8 @@ function renderStatsTable(players, statsObj, tableEl, playerRowEl, bodyEl, empty
   }
   emptyEl.style.display = 'none';
   tableEl.style.display = '';
+
+  const STAT_ROWS = getStatRows(maxPlayers || players.length);
 
   // ── Sort players: T-Points DESC → totalPot ASC → avgGamePoints DESC ──
   const sorted = [...players].sort((a, b) => {
@@ -1060,10 +1105,12 @@ function renderHome() {
   // Stats
   const stats = calcStats(games, 'tournament');
   const players = [...new Set(games.flatMap(g => g.players || []))];
+  const maxPlayers = games.length ? Math.max(...games.map(g => (g.players||[]).length)) : 5;
 
   renderStatsTable(
     players, stats,
-    UI['standings-table'], UI['standings-player-row'], UI['standings-body'], UI['standings-empty']
+    UI['standings-table'], UI['standings-player-row'], UI['standings-body'], UI['standings-empty'],
+    maxPlayers
   );
 }
 
@@ -1085,10 +1132,12 @@ function renderLeaderboard() {
   const filtered = lbFilter === 'all' ? games : games.filter(g => g.tournamentId === lbFilter);
   const stats = calcStats(filtered, 'allTime');
   const players = [...new Set(filtered.flatMap(g => g.players || []))];
+  const maxPlayers = filtered.length ? Math.max(...filtered.map(g => (g.players||[]).length)) : 5;
 
   renderStatsTable(
     players, stats,
-    UI['lb-table'], UI['lb-player-row'], UI['lb-body'], UI['lb-empty']
+    UI['lb-table'], UI['lb-player-row'], UI['lb-body'], UI['lb-empty'],
+    maxPlayers
   );
 }
 
@@ -1252,37 +1301,38 @@ function updateEntryTotals(dealerIdx) {
 
 function renderRoundsHistory() {
   const g = currentGame;
+  const SUIT_COLOR_CLS = { Hearts:'suit-red', Diamonds:'suit-red', Clubs:'suit-blue', Spades:'suit-blue', 'No Trump':'suit-nt' };
 
-  // Column header row
-  let headHtml = `<th>Rnd</th>`;
+  // Column header: Rnd | Trump | [Player colspan=2] ...
+  let headHtml = `<th>Rnd</th><th>Trump</th>`;
   g.players.forEach(p => headHtml += `<th colspan="2">${p}</th>`);
-  headHtml += `<th>Trump</th>`;
   document.getElementById('rounds-header-row').innerHTML = headHtml;
 
-  // Sub-header (bid / score labels)
-  let bodyHtml = `<tr class="round-row-header"><td>#</td>`;
+  // Sub-header
+  let bodyHtml = `<tr class="round-row-header"><td>#</td><td></td>`;
   g.players.forEach(() => bodyHtml += `<td>Bid</td><td>Score</td>`);
-  bodyHtml += `<td></td></tr>`;
+  bodyHtml += `</tr>`;
 
-  // ── Running totals pinned at TOP (below sub-header) ──
+  // Running totals pinned at top
   if (g.completedRounds.length > 0) {
     const totals = calcGameScore(g.completedRounds, g.players);
-    bodyHtml += `<tr class="round-total-row"><td>Tot</td>`;
+    bodyHtml += `<tr class="round-total-row"><td>Tot</td><td></td>`;
     g.players.forEach(p => bodyHtml += `<td></td><td>${totals[p] ?? 0}</td>`);
-    bodyHtml += `<td></td></tr>`;
+    bodyHtml += `</tr>`;
   }
 
   // Completed rounds, newest first
   const completed = [...g.completedRounds].reverse();
   completed.forEach(rd => {
     const sym = TRUMP_SYMBOLS[rd.trump] || rd.trump;
-    let row = `<tr><td>${rd.roundNum}</td>`;
+    const suitCls = SUIT_COLOR_CLS[rd.trump] || '';
+    let row = `<tr><td>${rd.roundNum}</td><td class="${suitCls}">${sym}</td>`;
     g.players.forEach(name => {
       const s = rd.scores.find(x => x.name === name) || {};
       const cls = s.made ? 'made' : 'missed';
       row += `<td>${s.bid ?? '—'}</td><td class="score-cell ${cls}">${s.score ?? '—'}</td>`;
     });
-    row += `<td>${sym}</td></tr>`;
+    row += `</tr>`;
     bodyHtml += row;
   });
 
@@ -1321,48 +1371,70 @@ function commitRound() {
   saveLocal();
 
   if (g.currentRoundIndex >= g.roundList.length) {
-    finalizeGame();
+    showGameSummary();
   } else {
     renderGameScreen();
   }
 }
 
 // ── FINALIZE GAME ────────────────────────────────────────────
-function finalizeGame() {
+// ── GAME SUMMARY ─────────────────────────────────────────────
+function showGameSummary() {
   const g = currentGame;
-  const totals = calcGameScore(g.completedRounds, g.players);
-  const threshold = calcThreshold(g.players.length, g.maxCards);
+  const totals    = calcGameScore(g.completedRounds, g.players);
+  const tPoints   = calcTournamentPoints(totals, g.players.length);
+  const threshold = g.threshold;
+  const minScore  = Math.min(...Object.values(totals));
+
+  const sorted = g.players
+    .map(p => ({ name: p, score: totals[p] || 0, tp: tPoints[p] || 0 }))
+    .sort((a, b) => b.score - a.score);
+
+  let rank = 1, html = '';
+  sorted.forEach((p, i) => {
+    if (i > 0 && p.score < sorted[i-1].score) rank = i + 1;
+    const isLast  = p.score === minScore && sorted.length > 1;
+    const loss    = isLast ? 1 : 0;
+    const penalty = p.score < threshold ? Math.ceil((threshold - p.score) / 10) : 0;
+    const pen     = loss + penalty;
+    const rankLabel = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
+    const penStyle  = pen > 0 ? 'color:var(--accent);font-weight:700' : 'color:var(--success)';
+    html += `<tr>
+      <td class="sum-rank">${rankLabel}</td>
+      <td class="sum-name">${p.name}</td>
+      <td class="sum-num">${p.score}</td>
+      <td class="sum-num">${p.tp}</td>
+      <td class="sum-num" style="${penStyle}">$${pen}</td>
+    </tr>`;
+  });
+  document.getElementById('game-summary-body').innerHTML = html;
+  openModal('modal-game-summary');
+}
+
+function doFinalizeGame() {
+  const g = currentGame;
+  const totals     = calcGameScore(g.completedRounds, g.players);
+  const threshold  = calcThreshold(g.players.length, g.maxCards);
   const financials = calcFinancials(totals, threshold);
-  const tPoints = calcTournamentPoints(totals, g.players.length);
+  const tPoints    = calcTournamentPoints(totals, g.players.length);
 
   const gameRecord = {
-    id: g.id,
-    tournamentId: currentTournament.id,
+    id: g.id, tournamentId: currentTournament.id,
     gameNum: (currentTournament.games || []).length + 1,
     date: new Date().toISOString(),
-    players: g.players,
-    maxCards: g.maxCards,
-    rounds: g.completedRounds,
-    totals,
-    financials,
-    tPoints,
-    threshold
+    players: g.players, maxCards: g.maxCards,
+    rounds: g.completedRounds, totals, financials, tPoints, threshold
   };
 
-  // Add to allTime
   if (!allTime.games) allTime.games = [];
   allTime.games.push(gameRecord);
-
-  // Update currentTournament
   if (!currentTournament.games) currentTournament.games = [];
   currentTournament.games.push(gameRecord);
 
   currentGame = null;
   saveLocal();
-
-  // Push to cloud if admin
+  closeModal('modal-game-summary');
   if (IS_ADMIN) pushToCloud();
-
   showToast('Game finalized! 🃏', 'success');
   showScreen('home');
   renderHome();
@@ -1572,8 +1644,8 @@ function openNewGame() {
   if (games.length >= MAX_TOURNAMENT_GAMES) {
     showConfirm(
       'Finalize Tournament?',
-      `You've played ${games.length} games. Finalize the current tournament and start a new one?`,
-      () => { finalizeTournament(); openNewGame(); }
+      `This tournament has reached ${MAX_TOURNAMENT_GAMES} games. Finalize it now and start a new one?`,
+      () => { doFinalizeTournament(); openNewGame(); }
     );
     return;
   }
@@ -1644,18 +1716,24 @@ function startGame() {
 }
 
 // ── FINALIZE TOURNAMENT ──────────────────────────────────────
+// ── FINALIZE TOURNAMENT ──────────────────────────────────────
+function doFinalizeTournament() {
+  if (!allTime.tournaments) allTime.tournaments = [];
+  allTime.tournaments.push({ ...currentTournament });
+  currentTournament = { id: newTournamentId(), games: [], players: [] };
+  saveLocal();
+  if (IS_ADMIN) pushToCloud();
+  renderHome();
+  showToast('Tournament finalized! 🏆', 'success');
+}
+
 function finalizeTournament() {
   if (!IS_SCOREKEEPER) return;
-  showConfirm('Finalize Tournament?', 'This will close the current tournament. A new one will start on next game.', () => {
-    // Archive
-    if (!allTime.tournaments) allTime.tournaments = [];
-    allTime.tournaments.push({ ...currentTournament });
-    currentTournament = { id: newTournamentId(), games: [], players: [] };
-    saveLocal();
-    if (IS_ADMIN) pushToCloud();
-    renderHome();
-    showToast('Tournament finalized!', 'success');
-  });
+  showConfirm(
+    'Finalize Tournament?',
+    'This will close the current tournament. A new one will start on the next game.',
+    doFinalizeTournament
+  );
 }
 
 // ── CLEAR DATA ───────────────────────────────────────────────
@@ -1838,6 +1916,7 @@ function bindEvents() {
   on('btn-resume',              'click', () => { showScreen('game'); renderGameScreen(); });
   on('btn-leaderboard',         'click', () => { renderLeaderboard(); openModal('modal-leaderboard'); });
   on('btn-settings',            'click', openSettings);
+  on('btn-finalize-save',    'click', doFinalizeGame);
   on('btn-finalize-tournament', 'click', finalizeTournament);
 
   // New game modal

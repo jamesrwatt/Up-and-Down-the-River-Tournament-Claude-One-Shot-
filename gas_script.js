@@ -190,6 +190,7 @@ function writeTournamentSheet(currentTournament) {
 
   const games   = (currentTournament && currentTournament.games) ? currentTournament.games : [];
   const players = [...new Set(games.flatMap(g => g.players || []))];
+  const maxPlayers = games.length ? Math.max.apply(null, games.map(function(g){ return (g.players||[]).length; })) : 5;
 
   if (players.length === 0) {
     sheet.appendRow(['No tournament data yet.']);
@@ -197,7 +198,7 @@ function writeTournamentSheet(currentTournament) {
   }
 
   const stats = calcStatsGAS(games);
-  writeStatsToSheet(sheet, players, stats, `Tournament: ${(currentTournament && currentTournament.id) || '—'}`);
+  writeStatsToSheet(sheet, players, stats, `Tournament: ${(currentTournament && currentTournament.id) || '—'}`, maxPlayers);
 }
 
 // ── LEADERBOARD STATS SHEET ──────────────────────────────────
@@ -209,6 +210,7 @@ function writeLeaderboardSheet(allTime) {
 
   const games   = (allTime && allTime.games) ? allTime.games : [];
   const players = [...new Set(games.flatMap(g => g.players || []))];
+  const maxPlayers = games.length ? Math.max.apply(null, games.map(function(g){ return (g.players||[]).length; })) : 5;
 
   if (players.length === 0) {
     sheet.appendRow(['No all-time data yet.']);
@@ -216,12 +218,13 @@ function writeLeaderboardSheet(allTime) {
   }
 
   const stats = calcStatsGAS(games);
-  writeStatsToSheet(sheet, players, stats, 'All-Time Leaderboard');
+  writeStatsToSheet(sheet, players, stats, 'All-Time Leaderboard', maxPlayers);
 }
 
 // ── WRITE STATS TABLE TO SHEET ───────────────────────────────
-function writeStatsToSheet(sheet, players, stats, title) {
+function writeStatsToSheet(sheet, players, stats, title, maxPlayers) {
   if (!players || players.length === 0) return;
+  const n = Math.max(1, maxPlayers || 5);
 
   // Sort players: T-Points DESC → totalPot ASC → avgGamePoints DESC
   const sorted = players.slice().sort(function(a, b) {
@@ -234,15 +237,16 @@ function writeStatsToSheet(sheet, players, stats, title) {
     return (sb.avgGamePoints || 0) - (sa.avgGamePoints || 0);
   });
 
+  // Build dynamic T-Points rows
+  const tpRows = [];
+  for (var pts = n; pts >= 1; pts--) {
+    tpRows.push({ key:'tp'+pts, label:'Games Earning '+pts+' T-Point'+(pts!==1?'s':''), dir: pts===n?'high':pts===1?'low':null });
+  }
+
   const STAT_ROWS = [
     { section:'POINTS DISTRIBUTION' },
-    { key:'totalTournamentPoints', label:'Total Tournament Points',          dir:'high' },
-    { key:'tp5',  label:'Games Earning 5 T-Points',                          dir:'high' },
-    { key:'tp4',  label:'Games Earning 4 T-Points',                          dir:'high' },
-    { key:'tp3',  label:'Games Earning 3 T-Points',                          dir:'high' },
-    { key:'tp2',  label:'Games Earning 2 T-Points',                          dir:null   },
-    { key:'tp1',  label:'Games Earning 1 T-Point',                           dir:'low'  },
-    { section:'FINANCIALS' },
+    { key:'totalTournamentPoints', label:'Total Tournament Points', dir:'high' }
+  ].concat(tpRows).concat([{ section:'FINANCIALS' },
     { key:'moneyLosses',      label:'Money From Losses',       fmt:'$',      dir:'low'  },
     { key:'moneyPenalties',   label:'Money From Penalties',    fmt:'$',      dir:'low'  },
     { key:'totalPot',         label:'Total Money in Pot',      fmt:'$',      dir:'low'  },
@@ -268,7 +272,7 @@ function writeStatsToSheet(sheet, players, stats, title) {
     { key:'longestLoseStreakHands',  label:'Longest Losing Streak (Across Games)',  dir:'low'  },
     { key:'longestStreakNoPay',      label:'Longest Streak Without Paying',         dir:'high' },
     { key:'longestStreakPay',        label:'Longest Streak With Paying',            dir:'low'  },
-  ];
+  ]);
 
   const numCols = sorted.length + 1; // stat label + one col per player
 
@@ -401,11 +405,7 @@ function calcStatsGAS(games) {
 
       // ── Tournament points ──
       s.totalTournamentPoints += tp;
-      if      (tp === 5) s.tp5++;
-      else if (tp === 4) s.tp4++;
-      else if (tp === 3) s.tp3++;
-      else if (tp === 2) s.tp2++;
-      else if (tp === 1) s.tp1++;
+      if (tp >= 1 && tp <= 10) s['tp' + tp] = (s['tp' + tp] || 0) + 1;
 
       // ── Financials ──
       s.moneyLosses     += Number(fin.losses)   || 0;
@@ -497,7 +497,8 @@ function calcStatsGAS(games) {
 function blankStats(name) {
   return {
     name, _games:0, _cw:0, _cl:0,
-    totalTournamentPoints:0, tp5:0, tp4:0, tp3:0, tp2:0, tp1:0,
+    totalTournamentPoints:0,
+    tp10:0,tp9:0,tp8:0,tp7:0,tp6:0,tp5:0,tp4:0,tp3:0,tp2:0,tp1:0,
     moneyLosses:0, moneyPenalties:0, totalPot:0, mostMoneyOneGame:0,
     avgGamePoints:0, totalGamePoints:0, totalSets:0, totalTricks:0,
     mostSetsOneGame:0,   leastSetsOneGame:Infinity,

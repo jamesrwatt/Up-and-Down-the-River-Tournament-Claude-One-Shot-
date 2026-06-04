@@ -167,7 +167,51 @@ body{display:flex;flex-direction:column}
 .entry-col-hint.bid-ref{color:var(--muted)}
 .dealer-pip{position:absolute;top:3px;right:4px;font-size:.55rem;color:var(--accent)}
 
-.entry-footer{display:flex;justify-content:flex-end;margin-top:6px}
+/* ===== DARK THEME ===== */
+[data-theme="dark"]{
+  --primary:#2c3e50;--primary-dk:#1a252f;--primary-lt:#3d5166;
+  --accent:#e74c3c;--success:#27ae60;--success-lt:#1a3a28;
+  --danger:#c0392b;--warning:#f39c12;
+  --bg:#0d1117;--surface:#161b22;--card:#1e2430;--card2:#252d3d;
+  --border:#30363d;--border2:#3d4451;
+  --text:#e2e8f0;--text2:#8b949e;--muted:#6e7681;
+  --shadow:rgba(0,0,0,.6);
+}
+[data-theme="dark"] .stats-table tr:nth-child(even) td{background:#1a2030}
+[data-theme="dark"] .stats-table tr:hover td{background:#222a3a}
+[data-theme="dark"] .stats-section-row td{background:#1e2430!important;color:#74b9ff}
+[data-theme="dark"] .entry-col{background:var(--card);border-color:var(--border)}
+[data-theme="dark"] .entry-input{background:var(--card2);color:var(--text);border-color:var(--border2)}
+[data-theme="dark"] .modal-footer{background:var(--card)}
+[data-theme="dark"] .settings-input{background:var(--card);color:var(--text);border-color:var(--border2)}
+[data-theme="dark"] .settings-panel{border-color:var(--border2)}
+[data-theme="dark"] .rounds-table tr:nth-child(even) td{background:#1a2030}
+[data-theme="dark"] .summary-table tr:nth-child(even) td{background:#1a2030}
+[data-theme="dark"] .edit-round-item{background:var(--card);border-color:var(--border)}
+[data-theme="dark"] .edit-round-item:hover{background:var(--card2)}
+@media(prefers-color-scheme:dark){
+  html:not([data-theme="light"]):not([data-theme="dark"]) {
+    --bg:#0d1117;--surface:#161b22;--card:#1e2430;--card2:#252d3d;
+    --border:#30363d;--border2:#3d4451;--text:#e2e8f0;--text2:#8b949e;
+    --muted:#6e7681;--shadow:rgba(0,0,0,.6);--success-lt:#1a3a28;
+  }
+}
+
+/* ===== SCROLLBARS — visible on desktop (mouse/trackpad) ===== */
+@media(hover:hover) and (pointer:fine){
+  .stats-outer::-webkit-scrollbar{width:8px;height:8px}
+  .stats-outer::-webkit-scrollbar-track{background:var(--card)}
+  .stats-outer::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+  .stats-outer::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+  .stats-outer{scrollbar-width:thin;scrollbar-color:var(--border2) var(--card)}
+  #edit-round-body::-webkit-scrollbar{width:8px;height:8px}
+  #edit-round-body::-webkit-scrollbar-track{background:var(--card)}
+  #edit-round-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+  #edit-round-body{scrollbar-width:thin;scrollbar-color:var(--border2) var(--card)}
+}
+
+/* ===== ENTRY FOOTER ===== */
+.entry-footer{display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:8px}
 
 /* ===== ROUNDS HISTORY TABLE ===== */
 .rounds-history{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;background:var(--surface)}
@@ -379,6 +423,7 @@ td.suit-nt{color:var(--muted)}
     <div class="entry-grid" id="entry-grid"></div>
 
     <div class="entry-footer">
+      <button class="btn btn-ghost" id="btn-back-bids" style="display:none">&#8592; Bids</button>
       <button class="btn btn-primary" id="btn-submit-entry">Submit &#10148;</button>
     </div>
   </div>
@@ -472,6 +517,14 @@ td.suit-nt{color:var(--muted)}
       <div class="settings-group">
         <div class="settings-label">Google Apps Script URL</div>
         <input type="url" class="settings-input" id="settings-gas-url" placeholder="https://script.google.com/...">
+      </div>
+      <div class="settings-group">
+        <div class="settings-label">Theme</div>
+        <select class="settings-input" id="settings-theme">
+          <option value="auto">&#9728; Auto (System)</option>
+          <option value="light">&#9728; Light</option>
+          <option value="dark">&#9790; Dark</option>
+        </select>
       </div>
       <hr class="settings-divider">
       <div id="admin-panel" style="display:none">
@@ -1192,49 +1245,57 @@ function renderEntryGrid(dealerIdx) {
   const cards = roundInfo.cards;
   if (dealerIdx === undefined) dealerIdx = (g.startingDealerIdx + g.currentRoundIndex) % g.players.length;
 
+  // Bid order: start from player after dealer, dealer bids last (rightmost)
+  const n = g.players.length;
+  const bidOrder = Array.from({length: n}, (_, k) => (dealerIdx + 1 + k) % n);
+
+  // Show/hide Back-to-Bids button
+  const backBtn = document.getElementById('btn-back-bids');
+  if (backBtn) backBtn.style.display = g.phase === 'tricks' ? 'inline-flex' : 'none';
+
   let html = '';
-  g.players.forEach((name, i) => {
-    const isDealer = (i === dealerIdx);
-    const isLastBidder = (g.phase === 'bid' && i === g.players.length - 1);
+  bidOrder.forEach(playerIdx => {
+    const name     = g.players[playerIdx];
+    const isDealer = (playerIdx === dealerIdx); // dealer is last in bidOrder
 
     let inputVal, hintTxt, hintCls;
     if (g.phase === 'bid') {
-      inputVal = g.currentBids[i] ?? 0;
+      inputVal = g.currentBids[playerIdx] ?? 0;
       hintTxt  = isDealer ? '★ Dealer' : '';
       hintCls  = 'bid-ref';
     } else {
-      inputVal = g.currentTricks[i] ?? g.currentBids[i] ?? 0;
-      const bid = g.currentBids[i] ?? 0;
-      const t   = g.currentTricks[i] ?? bid;
+      inputVal = g.currentTricks[playerIdx] ?? g.currentBids[playerIdx] ?? 0;
+      const bid  = g.currentBids[playerIdx] ?? 0;
+      const t    = g.currentTricks[playerIdx] ?? bid;
       const made = +t === +bid;
       hintTxt  = `bid ${bid}`;
       hintCls  = made ? 'ok' : 'warn';
     }
 
     html += `
-      <div class="entry-col${isDealer ? ' is-dealer' : ''}" id="entry-col-${i}">
+      <div class="entry-col${isDealer ? ' is-dealer' : ''}" id="entry-col-${playerIdx}">
         ${isDealer ? '<span class="dealer-pip">★</span>' : ''}
         <div class="entry-col-name" title="${name}">${name}</div>
-        <input type="number" class="entry-input" id="entry-input-${i}"
+        <input type="number" class="entry-input" id="entry-input-${playerIdx}"
                min="0" max="${cards}" value="${inputVal}">
-        <div class="entry-col-hint ${hintCls}" id="entry-hint-${i}">${hintTxt}</div>
+        <div class="entry-col-hint ${hintCls}" id="entry-hint-${playerIdx}">${hintTxt}</div>
       </div>`;
   });
 
   const grid = document.getElementById('entry-grid');
   if (grid) grid.innerHTML = html;
 
-  // Attach listeners
-  g.players.forEach((_, i) => {
-    const inp = document.getElementById(`entry-input-${i}`);
+  // Attach listeners using actual player index
+  bidOrder.forEach(playerIdx => {
+    const inp = document.getElementById(`entry-input-${playerIdx}`);
     if (!inp) return;
-    inp.addEventListener('input', () => onEntryChange(i, inp.value));
-    inp.addEventListener('focus', () => { inp.select(); });
+    inp.addEventListener('input', () => onEntryChange(playerIdx, inp.value));
+    inp.addEventListener('focus', () => inp.select());
   });
 
-  // Focus first input
+  // Focus first input in bid order
   setTimeout(() => {
-    const first = document.getElementById('entry-input-0');
+    const first = document.getElementById(`entry-input-${bidOrder[0]}`);
     if (first) first.focus();
   }, 80);
 
@@ -1273,64 +1334,86 @@ function updateEntryTotals(dealerIdx) {
   const cards = roundInfo.cards;
   if (dealerIdx === undefined) dealerIdx = (g.startingDealerIdx + g.currentRoundIndex) % g.players.length;
 
-  const badge = document.getElementById('entry-total-badge');
+  const badge     = document.getElementById('entry-total-badge');
   const submitBtn = document.getElementById('btn-submit-entry');
 
   if (g.phase === 'bid') {
-    // All bids default to 0 — always "filled"
     const total = g.currentBids.reduce((a, b) => a + (+(b ?? 0)), 0);
+    // Forbidden: total bids === cards in round (dealer cannot make it so)
     const forbidden = (total === cards);
     if (badge) {
       badge.textContent = `Bids: ${total} / ${cards}`;
-      badge.className = 'entry-total-badge' + (forbidden ? ' invalid' : ' valid');
+      badge.className   = 'entry-total-badge' + (forbidden ? ' invalid' : ' valid');
     }
-    // Mark the last bidder's input forbidden in real-time
-    const lastInp = document.getElementById(`entry-input-${g.players.length - 1}`);
-    if (lastInp) lastInp.className = 'entry-input' + (forbidden ? ' forbidden' : '');
+    // Highlight the dealer's specific input (not always last player index)
+    const dealerInp = document.getElementById(`entry-input-${dealerIdx}`);
+    if (dealerInp) dealerInp.className = 'entry-input' + (forbidden ? ' forbidden' : '');
     if (submitBtn) submitBtn.disabled = forbidden;
   } else {
     const total = g.currentTricks.reduce((a, b) => a + (+(b ?? 0)), 0);
     const valid  = (total === cards);
     if (badge) {
       badge.textContent = `Tricks: ${total} / ${cards}`;
-      badge.className = 'entry-total-badge' + (valid ? ' valid' : ' invalid');
+      badge.className   = 'entry-total-badge' + (valid ? ' valid' : ' invalid');
     }
     if (submitBtn) submitBtn.disabled = !valid;
   }
 }
 
+// ── BACK TO BIDS ─────────────────────────────────────────────
+function backToBids() {
+  const g = currentGame;
+  if (!g || g.phase !== 'tricks') return;
+  g.phase = 'bid';
+  renderGameScreen();
+}
+
 function renderRoundsHistory() {
   const g = currentGame;
   const SUIT_COLOR_CLS = { Hearts:'suit-red', Diamonds:'suit-red', Clubs:'suit-blue', Spades:'suit-blue', 'No Trump':'suit-nt' };
+  const table = document.getElementById('rounds-table');
 
-  // Column header: Rnd | Trump | [Player colspan=2] ...
-  let headHtml = `<th>Rnd</th><th>Trump</th>`;
-  g.players.forEach(p => headHtml += `<th colspan="2">${p}</th>`);
+  // ── Colgroup: fixed Rnd+Trump, equal player pairs ──
+  const oldCg = table.querySelector('colgroup');
+  if (oldCg) oldCg.remove();
+  const cg = document.createElement('colgroup');
+  const fixedW = '48px';
+  const addCol = (w) => { const c = document.createElement('col'); if (w) c.style.width = w; cg.appendChild(c); };
+  addCol(fixedW); // Rnd
+  addCol(fixedW); // Trump
+  g.players.forEach(() => { addCol(); addCol(); }); // Bid + Score per player (auto = equal share)
+  table.insertBefore(cg, table.firstChild);
+  table.style.tableLayout = 'fixed';
+  table.style.width       = '100%';
+
+  // Column header: Rnd | Trump | [Player centered over colspan=2] ...
+  let headHtml = `<th style="width:${fixedW}">Rnd</th><th style="width:${fixedW}">Trump</th>`;
+  g.players.forEach(p => headHtml += `<th colspan="2" style="text-align:center">${p}</th>`);
   document.getElementById('rounds-header-row').innerHTML = headHtml;
 
   // Sub-header
   let bodyHtml = `<tr class="round-row-header"><td>#</td><td></td>`;
-  g.players.forEach(() => bodyHtml += `<td>Bid</td><td>Score</td>`);
+  g.players.forEach(() => bodyHtml += `<td style="text-align:center">Bid</td><td style="text-align:center">Score</td>`);
   bodyHtml += `</tr>`;
 
   // Running totals pinned at top
   if (g.completedRounds.length > 0) {
     const totals = calcGameScore(g.completedRounds, g.players);
     bodyHtml += `<tr class="round-total-row"><td>Tot</td><td></td>`;
-    g.players.forEach(p => bodyHtml += `<td></td><td>${totals[p] ?? 0}</td>`);
+    g.players.forEach(p => bodyHtml += `<td></td><td style="text-align:center">${totals[p] ?? 0}</td>`);
     bodyHtml += `</tr>`;
   }
 
   // Completed rounds, newest first
   const completed = [...g.completedRounds].reverse();
   completed.forEach(rd => {
-    const sym = TRUMP_SYMBOLS[rd.trump] || rd.trump;
+    const sym     = TRUMP_SYMBOLS[rd.trump] || rd.trump;
     const suitCls = SUIT_COLOR_CLS[rd.trump] || '';
-    let row = `<tr><td>${rd.roundNum}</td><td class="${suitCls}">${sym}</td>`;
+    let row = `<tr><td style="text-align:center">${rd.roundNum}</td><td class="${suitCls}" style="text-align:center">${sym}</td>`;
     g.players.forEach(name => {
       const s = rd.scores.find(x => x.name === name) || {};
       const cls = s.made ? 'made' : 'missed';
-      row += `<td>${s.bid ?? '—'}</td><td class="score-cell ${cls}">${s.score ?? '—'}</td>`;
+      row += `<td style="text-align:center">${s.bid ?? '—'}</td><td class="score-cell ${cls}" style="text-align:center">${s.score ?? '—'}</td>`;
     });
     row += `</tr>`;
     bodyHtml += row;
@@ -1393,14 +1476,14 @@ function showGameSummary() {
   let rank = 1, html = '';
   sorted.forEach((p, i) => {
     if (i > 0 && p.score < sorted[i-1].score) rank = i + 1;
+    // Total pot = loss (last place $1) + threshold penalty
     const isLast  = p.score === minScore && sorted.length > 1;
     const loss    = isLast ? 1 : 0;
     const penalty = p.score < threshold ? Math.ceil((threshold - p.score) / 10) : 0;
-    const pen     = loss + penalty;
-    const rankLabel = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : rank;
-    const penStyle  = pen > 0 ? 'color:var(--accent);font-weight:700' : 'color:var(--success)';
+    const pen     = loss + penalty;  // matches "Money from Losses + Money from Penalties"
+    const penStyle = pen > 0 ? 'color:var(--accent);font-weight:700' : 'color:var(--success)';
     html += `<tr>
-      <td class="sum-rank">${rankLabel}</td>
+      <td class="sum-rank">${rank}</td>
       <td class="sum-name">${p.name}</td>
       <td class="sum-num">${p.score}</td>
       <td class="sum-num">${p.tp}</td>
@@ -1447,9 +1530,11 @@ function openEditRound() {
 
   let html = '<div class="edit-round-list">';
   g.completedRounds.forEach((rd, idx) => {
+    // Show symbol instead of word for trump
+    const sym = TRUMP_SYMBOLS[rd.trump] || rd.trump;
     html += `<div class="edit-round-item" data-idx="${idx}">
       <span class="edit-round-num">#${rd.roundNum}</span>
-      <span class="edit-round-info">${rd.cards} cards | ${rd.trump} | ${rd.scores.map(s=>s.name+':'+s.bid+'/'+s.tricks).join(', ')}</span>
+      <span class="edit-round-info">${rd.cards} cards | ${sym} | ${rd.scores.map(s=>s.name+':'+s.bid+'/'+s.tricks).join(', ')}</span>
     </div>`;
   });
   html += '</div><div id="edit-form"></div>';
@@ -1473,10 +1558,11 @@ function openEditRound() {
   openModal('modal-edit-round');
 }
 
+
 function renderEditForm(idx) {
   const g = currentGame;
   const rd = g.completedRounds[idx];
-  let html = `<div style="margin-top:12px"><div class="settings-label">Edit Round ${rd.roundNum} (${rd.cards} cards, ${rd.trump})</div>`;
+  let html = `<div style="margin-top:12px"><div class="settings-label">Edit Round ${rd.roundNum} (${rd.cards} cards, ${TRUMP_SYMBOLS[rd.trump]||rd.trump})</div>`;
   html += `<div class="entry-grid" style="margin-top:8px">`;
   rd.scores.forEach((s, i) => {
     html += `<div class="entry-player-row">
@@ -1762,7 +1848,13 @@ function clearLeaderboard(cloud) {
   });
 }
 
-// ── QR CODE ──────────────────────────────────────────────────
+// ── THEME ────────────────────────────────────────────────────
+function applyTheme(theme) {
+  const html = document.documentElement;
+  if (theme === 'dark')  { html.setAttribute('data-theme','dark'); }
+  else if (theme === 'light') { html.setAttribute('data-theme','light'); }
+  else { html.removeAttribute('data-theme'); } // auto — CSS media query handles it
+}
 function generateQRCode() {
   const container = document.getElementById('qr-container');
   if (!container) return;
@@ -1788,10 +1880,12 @@ function openSettings() {
   const gasEl    = document.getElementById('settings-gas-url');
   const pwEl     = document.getElementById('settings-password');
   const pwRowEl  = document.getElementById('settings-password-row');
+  const themeEl  = document.getElementById('settings-theme');
   if (roleEl)  roleEl.value  = role;
   if (gasEl)   gasEl.value   = GAS_URL || DEFAULT_GAS_URL;
   if (pwEl)    pwEl.value    = '';
   if (pwRowEl) pwRowEl.style.display = role === 'admin' ? 'block' : 'none';
+  if (themeEl) themeEl.value = localStorage.getItem('theme') || 'auto';
   generateQRCode();
   document.getElementById('modal-settings').classList.add('active');
 }
@@ -1815,10 +1909,14 @@ function saveSettings() {
       }
     }
 
-    // Persist role & GAS URL
+    // Persist role, GAS URL, and theme
     localStorage.setItem('role', role);
     GAS_URL = (gasEl ? gasEl.value.trim() : '') || DEFAULT_GAS_URL;
-    localStorage.setItem(LS_KEYS.settings, JSON.stringify({ gasUrl: GAS_URL, role }));
+    const themeEl = document.getElementById('settings-theme');
+    const theme   = themeEl ? themeEl.value : 'auto';
+    localStorage.setItem('theme', theme);
+    applyTheme(theme);
+    localStorage.setItem(LS_KEYS.settings, JSON.stringify({ gasUrl: GAS_URL, role, theme }));
 
     // Update permission flags and home UI
     checkPermissions();
@@ -1924,6 +2022,7 @@ function bindEvents() {
   on('btn-start-game',   'click', startGame);
 
   // Game screen
+  on('btn-back-bids',    'click', backToBids);
   on('btn-submit-entry', 'click', submitEntry);
   on('btn-save-exit',    'click', () => { saveLocal(); showScreen('home'); renderHome(); });
   on('btn-edit-round',   'click', openEditRound);

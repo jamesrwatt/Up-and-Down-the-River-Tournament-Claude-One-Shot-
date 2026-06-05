@@ -197,24 +197,6 @@ body{display:flex;flex-direction:column}
   }
 }
 
-/* ===== SCROLLBARS — visible on desktop (mouse/trackpad) ===== */
-@media(hover:hover) and (pointer:fine){
-  .stats-outer::-webkit-scrollbar{width:10px;height:10px;display:block}
-  .stats-outer::-webkit-scrollbar-track{background:var(--card);border-radius:0 0 6px 6px}
-  .stats-outer::-webkit-scrollbar-thumb{background:var(--border2);border-radius:5px;border:2px solid var(--card)}
-  .stats-outer::-webkit-scrollbar-thumb:hover{background:var(--muted)}
-  .stats-outer{scrollbar-width:thin;scrollbar-color:var(--border2) var(--card)}
-  #edit-round-body::-webkit-scrollbar{width:10px;height:10px;display:block}
-  #edit-round-body::-webkit-scrollbar-track{background:var(--card)}
-  #edit-round-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:5px;border:2px solid var(--card)}
-  #edit-round-body{scrollbar-width:thin;scrollbar-color:var(--border2) var(--card)}
-}
-/* Force horizontal scrollbar always visible on desktop for leaderboard / edit rounds */
-@media(hover:hover) and (pointer:fine){
-  .stats-outer{overflow-x:scroll!important}
-  #edit-round-body{overflow-x:scroll!important;overflow-y:auto}
-}
-
 /* ===== ENTRY FOOTER ===== */
 .entry-footer{display:flex;justify-content:flex-end;align-items:center;margin-top:6px;gap:8px}
 #btn-back-bids{margin-right:auto}  /* pushes back btn left, submit stays right */
@@ -359,6 +341,16 @@ td.suit-nt{color:var(--muted)}
 .app-container{width:100%;max-width:1200px;margin:0 auto;height:100%;display:flex;flex-direction:column;background:var(--surface);box-shadow:0 4px 30px rgba(0,0,0,.15);overflow:hidden;position:relative}
 .app-container *::-webkit-scrollbar{width:0;height:0;background:transparent}
 .app-container *{scrollbar-width:none;-ms-overflow-style:none}
+/* Re-enable visible scrollbars specifically for scrollable data surfaces */
+.stats-outer{scrollbar-width:thin!important;-ms-overflow-style:auto!important;overflow-x:scroll!important}
+.stats-outer::-webkit-scrollbar{width:10px!important;height:10px!important;display:block!important}
+.stats-outer::-webkit-scrollbar-track{background:var(--card2)}
+.stats-outer::-webkit-scrollbar-thumb{background:var(--border2);border-radius:5px;border:2px solid var(--card2)}
+.stats-outer::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+#edit-round-body{scrollbar-width:thin!important;-ms-overflow-style:auto!important;overflow-x:scroll!important}
+#edit-round-body::-webkit-scrollbar{width:10px!important;height:10px!important;display:block!important}
+#edit-round-body::-webkit-scrollbar-track{background:var(--card2)}
+#edit-round-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:5px;border:2px solid var(--card2)}
 @media(min-width:1220px){
   body{background:#e8edf0;align-items:center;justify-content:center}
   .app-container{border-radius:16px;height:calc(100vh - 32px);margin:16px auto}
@@ -452,8 +444,8 @@ td.suit-nt{color:var(--muted)}
     <div class="entry-grid" id="entry-grid"></div>
 
     <div class="entry-footer">
-      <button class="btn btn-primary" id="btn-back-bids" style="display:none"><span style="display:inline-block;transform:scaleX(-1)">&#10148;</span> Bids</button>
-      <button class="btn btn-primary" id="btn-submit-entry">Submit &#10148;</button>
+      <button class="btn btn-primary" id="btn-back-bids" style="display:none;flex:1"><span style="display:inline-block;transform:scaleX(-1)">&#10148;</span> Bids</button>
+      <button class="btn btn-primary" id="btn-submit-entry" style="flex:1">Submit &#10148;</button>
     </div>
   </div>
 
@@ -1426,7 +1418,7 @@ function saveRenamedPlayers() {
   if (!g) return;
   const newNames = g.players.map((_, i) => {
     const el = document.getElementById(`rename-input-${i}`);
-    return el ? el.value.trim() || g.players[i] : g.players[i];
+    return el ? toProperCase(el.value.trim()) || g.players[i] : g.players[i];
   });
   // Build old→new map
   const oldToNew = {};
@@ -1463,10 +1455,10 @@ function renderRoundsHistory() {
   const cg = document.createElement('colgroup');
   const addCol = (w) => { const c = document.createElement('col'); if (w) c.style.width = w; cg.appendChild(c); };
   addCol('48px'); // Rnd — fixed
-  addCol('auto'); // Trump — autofit to content
+  addCol('60px'); // Trump — fixed 60px
   g.players.forEach(() => { addCol(); addCol(); }); // Bid + Score per player
   table.insertBefore(cg, table.firstChild);
-  table.style.tableLayout = 'auto'; // allow trump to autofit
+  table.style.tableLayout = 'fixed'; // fixed so remaining cols share space equally
   table.style.width       = '100%';
 
   // Column header: Rnd | Trump | [Player centred over colspan=2] ...
@@ -1549,27 +1541,29 @@ function showGameSummary() {
   const g = currentGame;
   const totals    = calcGameScore(g.completedRounds, g.players);
   const tPoints   = calcTournamentPoints(totals, g.players.length);
-  const threshold = g.threshold;
-  const minScore  = Math.min(...Object.values(totals));
+  // Always recalculate threshold — g.threshold may not be set on older saved games
+  const threshold = calcThreshold(g.players.length, g.maxCards);
+  const financials = calcFinancials(totals, threshold);
 
   const sorted = g.players
     .map(p => ({ name: p, score: totals[p] || 0, tp: tPoints[p] || 0 }))
     .sort((a, b) => b.score - a.score);
 
   let rank = 1, html = '';
-  // Use calcFinancials for exact match with what's stored in stats
-  const financials = calcFinancials(totals, threshold);
   sorted.forEach((p, i) => {
     if (i > 0 && p.score < sorted[i-1].score) rank = i + 1;
-    // Total pot = exactly what's in the financial record (losses + penalties)
-    const pen      = (financials[p.name] || {}).total || 0;
+    const fin      = financials[p.name] || { losses:0, penalties:0, total:0 };
+    const pen      = fin.total;
+    const penDetail = pen > 0
+      ? `$${pen} (${fin.losses ? `$${fin.losses} loss` : ''}${fin.losses && fin.penalties ? ' + ' : ''}${fin.penalties ? `$${fin.penalties} pen` : ''})`
+      : '$0';
     const penStyle = pen > 0 ? 'color:var(--accent);font-weight:700' : 'color:var(--success)';
     html += `<tr>
       <td class="sum-rank">${rank}</td>
       <td class="sum-name">${p.name}</td>
       <td class="sum-num">${p.score}</td>
       <td class="sum-num">${p.tp}</td>
-      <td class="sum-num" style="${penStyle}">$${pen}</td>
+      <td class="sum-num" style="${penStyle}">${penDetail}</td>
     </tr>`;
   });
   document.getElementById('game-summary-body').innerHTML = html;
@@ -1835,8 +1829,12 @@ function openNewGame() {
   openModal('modal-new-game');
 }
 
+function toProperCase(str) {
+  return str.replace(/\w\S*/g, w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+
 function parsePlayers(text) {
-  return text.split(/[\n,]+/).map(s=>s.trim()).filter(Boolean);
+  return text.split(/[\n,]+/).map(s => toProperCase(s.trim())).filter(Boolean);
 }
 
 function updatePlayerCountHint() {

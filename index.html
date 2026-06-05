@@ -444,8 +444,8 @@ td.suit-nt{color:var(--muted)}
     <div class="entry-grid" id="entry-grid"></div>
 
     <div class="entry-footer">
-      <button class="btn btn-primary" id="btn-back-bids" style="display:none;flex:1"><span style="display:inline-block;transform:scaleX(-1)">&#10148;</span> Bids</button>
-      <button class="btn btn-primary" id="btn-submit-entry" style="flex:1">Submit &#10148;</button>
+      <button class="btn btn-primary" id="btn-back-bids" style="display:none"><span style="display:inline-block;transform:scaleX(-1)">&#10148;</span> Bids</button>
+      <button class="btn btn-primary" id="btn-submit-entry">Submit &#10148;</button>
     </div>
   </div>
 
@@ -1554,16 +1554,13 @@ function showGameSummary() {
     if (i > 0 && p.score < sorted[i-1].score) rank = i + 1;
     const fin      = financials[p.name] || { losses:0, penalties:0, total:0 };
     const pen      = fin.total;
-    const penDetail = pen > 0
-      ? `$${pen} (${fin.losses ? `$${fin.losses} loss` : ''}${fin.losses && fin.penalties ? ' + ' : ''}${fin.penalties ? `$${fin.penalties} pen` : ''})`
-      : '$0';
     const penStyle = pen > 0 ? 'color:var(--accent);font-weight:700' : 'color:var(--success)';
     html += `<tr>
       <td class="sum-rank">${rank}</td>
       <td class="sum-name">${p.name}</td>
       <td class="sum-num">${p.score}</td>
       <td class="sum-num">${p.tp}</td>
-      <td class="sum-num" style="${penStyle}">${penDetail}</td>
+      <td class="sum-num" style="${penStyle}">$${pen}</td>
     </tr>`;
   });
   document.getElementById('game-summary-body').innerHTML = html;

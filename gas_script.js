@@ -105,31 +105,21 @@ function setMeta(key, value) {
   for (let i = 0; i < json.length; i += META_CHUNK_SIZE) {
     chunks.push(json.slice(i, i + META_CHUNK_SIZE));
   }
-
-  // Build map of all chunk keys for this base key
   const chunkKeys = [key];
-  for (let i = 1; i < chunks.length; i++) chunkKeys.push(`${key}__${i}`);
+  for (let i = 1; i < chunks.length; i++) chunkKeys.push(key + '__' + i);
 
-  // Read current sheet to find existing rows
-  const data = sheet.getDataRange().getValues();
+  // Read all current rows, remove this key's old chunks, append new chunks
+  // Then rewrite the whole sheet in one setValues call
+  const existing = sheet.getDataRange().getValues();
+  const keyPattern = new RegExp('^' + key.replace(/[.*+?^${}()|[\]\\]/g,'\\$&') + '(__\\d+)?$');
+  const kept = existing.filter(row => !keyPattern.test(String(row[0] || '').trim()));
+  const newRows = chunkKeys.map(function(k, i) { return [k, chunks[i]]; });
+  const allRows = kept.concat(newRows);
 
-  // Delete ALL existing rows for this key (base + any old chunks)
-  // Work backwards so row indices stay valid
-  const rowsToDelete = [];
-  data.forEach((row, idx) => {
-    const k = String(row[0] || '').trim();
-    if (k === key || k.match(new RegExp(`^${key}__\\d+$`))) {
-      rowsToDelete.push(idx + 1); // 1-indexed
-    }
-  });
-  for (let i = rowsToDelete.length - 1; i >= 0; i--) {
-    sheet.deleteRow(rowsToDelete[i]);
+  sheet.clearContents();
+  if (allRows.length > 0) {
+    sheet.getRange(1, 1, allRows.length, 2).setValues(allRows);
   }
-
-  // Append all chunks as new rows
-  chunks.forEach((chunk, i) => {
-    sheet.appendRow([chunkKeys[i], chunk]);
-  });
 }
 
 // ── GAME ARCHIVE SHEET ───────────────────────────────────────
@@ -138,47 +128,55 @@ function writeArchiveSheet(games) {
   let sheet   = ss.getSheetByName(SHEET_ARCHIVE);
   if (!sheet) sheet = ss.insertSheet(SHEET_ARCHIVE);
   sheet.clearContents();
+  sheet.clearFormats();
 
   if (!games || games.length === 0) {
-    sheet.appendRow(['No games recorded yet.']);
+    sheet.getRange(1, 1).setValue('No games recorded yet.');
     return;
   }
 
-  // Collect all unique player names in order of first appearance
+  // Collect all unique player names
   const allPlayers = [];
   games.forEach(g => {
-    (g.players||[]).forEach(p => { if (!allPlayers.includes(p)) allPlayers.push(p); });
+    (g.players || []).forEach(p => { if (!allPlayers.includes(p)) allPlayers.push(p); });
   });
 
-  // Build header
-  const staticCols = ['Tournament','Game #','Date','Round #','Cards','Trump'];
+  const staticCols = ['Tournament', 'Game #', 'Date', 'Round #', 'Cards', 'Trump'];
   const playerCols = [];
   allPlayers.forEach(p => playerCols.push(`${p} Bid`, `${p} Tricks`, `${p} Score`, `${p} Made`));
   const fullHeader = [...staticCols, ...playerCols];
-  sheet.appendRow(fullHeader);
+  const numCols    = fullHeader.length;
 
-  // Style header — navy background, white text
-  const hdr = sheet.getRange(1, 1, 1, fullHeader.length);
-  hdr.setFontWeight('bold').setBackground('#2c3e50').setFontColor('#ffffff');
-
-  // Data rows
+  // ── Build ALL rows in memory first ──────────────────────────
+  const allRows = [fullHeader]; // row 0 = header
   games.forEach(game => {
-    const { tournamentId, gameNum, date, rounds, players } = game;
+    const { tournamentId, gameNum, date, rounds } = game;
     const dateStr = date ? new Date(date).toLocaleDateString() : '';
     (rounds || []).forEach(rd => {
-      const row = [tournamentId || '', gameNum || '', dateStr, rd.roundNum || '', rd.cards || '', rd.trump || ''];
+      const row = [
+        tournamentId || '', gameNum || '', dateStr,
+        rd.roundNum || '', rd.cards || '', rd.trump || ''
+      ];
       allPlayers.forEach(p => {
-        const s = (rd.scores||[]).find(x => x.name === p);
-        if (s) { row.push(s.bid, s.tricks, s.score, s.made ? 'Y' : 'N'); }
-        else   { row.push('', '', '', ''); }
+        const s = (rd.scores || []).find(x => x.name === p);
+        if (s) row.push(s.bid, s.tricks, s.score, s.made ? 'Y' : 'N');
+        else   row.push('', '', '', '');
       });
-      sheet.appendRow(row);
+      allRows.push(row);
     });
   });
 
-  // Freeze header row and auto-resize
+  // ── Write all rows in one call ───────────────────────────────
+  sheet.getRange(1, 1, allRows.length, numCols).setValues(allRows);
+
+  // ── Formatting (bulk range ops, no per-row calls) ────────────
+  sheet.getRange(1, 1, 1, numCols)
+       .setFontWeight('bold')
+       .setBackground('#2c3e50')
+       .setFontColor('#ffffff');
+
   try { sheet.setFrozenRows(1); } catch(_) {}
-  try { sheet.autoResizeColumns(1, fullHeader.length); } catch(_) {}
+  try { sheet.autoResizeColumns(1, numCols); } catch(_) {}
 }
 
 // ── TOURNAMENT STATS SHEET ───────────────────────────────────
@@ -277,44 +275,32 @@ function writeStatsToSheet(sheet, players, stats, title, maxPlayers) {
   const numCols = sorted.length + 1; // stat label + one col per player
 
   // ── Row 1: Title ──────────────────────────────────────────
-  sheet.appendRow([title]);
-  sheet.getRange(1, 1, 1, numCols)
-       .merge()
-       .setFontWeight('bold')
-       .setFontSize(13)
-       .setBackground('#2c3e50')
-       .setFontColor('#ffffff')
-       .setHorizontalAlignment('left');
-
   // ── Row 2: Column headers ─────────────────────────────────
-  const headerRow = ['Statistic', ...sorted];
-  sheet.appendRow(headerRow);
-  sheet.getRange(2, 1, 1, numCols)
-       .setFontWeight('bold')
-       .setBackground('#3d5166')
-       .setFontColor('#ffffff');
+  // ── Rows 3+: Stats — build entire 2D array first ──────────
+  const allData = [
+    [title],          // row 1 — title (written separately for merge)
+    ['Statistic', ...sorted], // row 2 — player headers
+  ];
 
-  // ── Rows 3+: Stats ────────────────────────────────────────
+  // Metadata arrays for deferred formatting
+  const sectionRows   = [];      // sheetRow numbers that are section dividers
+  const bestCells     = [];      // {row, col} to colour green
+  const worstCells    = [];      // {row, col} to colour red
+  const evenDataRows  = [];      // sheetRow numbers for alternating shading
   let sheetRow = 3;
 
   STAT_ROWS.forEach(row => {
     if (row.section) {
       const sectionLabel = [row.section];
       for (let i = 1; i < numCols; i++) sectionLabel.push('');
-      sheet.appendRow(sectionLabel);
-      sheet.getRange(sheetRow, 1, 1, numCols)
-           .setFontWeight('bold')
-           .setFontColor('#ffffff')
-           .setBackground('#4a6070')
-           .setFontSize(9);
+      allData.push(sectionLabel);
+      sectionRows.push(sheetRow);
     } else {
-      // Gather raw values using sorted order
       const rawVals = sorted.map(function(p) {
         const s = stats[p];
         return (s && s[row.key] !== undefined && s[row.key] !== null) ? +s[row.key] : null;
       });
 
-      // Determine best/worst for coloring
       let bestVal = null, worstVal = null;
       if (row.dir && sorted.length > 1) {
         const defined = rawVals.filter(function(v) { return v !== null; });
@@ -328,46 +314,83 @@ function writeStatsToSheet(sheet, players, stats, title, maxPlayers) {
         }
       }
 
-      // Build display values
       const cells = [row.label];
-      rawVals.forEach(function(v) {
+      rawVals.forEach(function(v, i) {
         if (v === null) { cells.push('—'); return; }
-        if (row.fmt === '$') cells.push('$' + Math.round(v));
-        else                  cells.push(Math.round(v));
+        cells.push(row.fmt === '$' ? '$' + Math.round(v) : Math.round(v));
+        if (bestVal  !== null && v === bestVal)  bestCells.push({r: sheetRow, c: i + 2});
+        if (worstVal !== null && v === worstVal) worstCells.push({r: sheetRow, c: i + 2});
       });
-      sheet.appendRow(cells);
+      allData.push(cells);
 
-      // Center-align numeric columns
-      if (sorted.length > 0) {
-        sheet.getRange(sheetRow, 2, 1, sorted.length).setHorizontalAlignment('center');
-      }
-
-      // Apply green/red coloring per cell
-      sorted.forEach(function(p, i) {
-        const v = rawVals[i];
-        if (v === null) return;
-        const col = i + 2;
-        if (bestVal  !== null && v === bestVal)  sheet.getRange(sheetRow, col).setFontColor('#27ae60').setFontWeight('bold');
-        if (worstVal !== null && v === worstVal) sheet.getRange(sheetRow, col).setFontColor('#e74c3c').setFontWeight('bold');
-      });
+      if (sheetRow % 2 === 0) evenDataRows.push(sheetRow);
     }
     sheetRow++;
   });
 
-  // ── Final formatting ──────────────────────────────────────
+  // ── Bulk write all data in one call ───────────────────────
+  const totalRows = allData.length;
+
+  // Title row (single cell, will be merged across all cols)
+  sheet.getRange(1, 1, 1, numCols)
+       .merge()
+       .setValue(title)
+       .setFontWeight('bold')
+       .setFontSize(13)
+       .setBackground('#2c3e50')
+       .setFontColor('#ffffff')
+       .setHorizontalAlignment('left');
+
+  // Write rows 2+ (headers + data) in one setValues call
+  if (allData.length > 1) {
+    sheet.getRange(2, 1, allData.length - 1, numCols).setValues(allData.slice(1));
+  }
+
+  // ── Bulk formatting after write ────────────────────────────
+
+  // Header row (row 2)
+  sheet.getRange(2, 1, 1, numCols)
+       .setFontWeight('bold')
+       .setBackground('#3d5166')
+       .setFontColor('#ffffff');
+
+  // Section rows — apply all in one loop with minimal calls
+  sectionRows.forEach(function(r) {
+    sheet.getRange(r, 1, 1, numCols)
+         .setFontWeight('bold')
+         .setFontColor('#ffffff')
+         .setBackground('#4a6070')
+         .setFontSize(9);
+  });
+
+  // Alternate row shading — collect contiguous runs to minimise range calls
+  if (evenDataRows.length > 0) {
+    // Shade all even data rows using a single conditional batch
+    evenDataRows.forEach(function(r) {
+      // Only shade if not a section row
+      if (sectionRows.indexOf(r) === -1) {
+        sheet.getRange(r, 1, 1, numCols).setBackground('#f4f7f6');
+      }
+    });
+  }
+
+  // Centre-align all player-value columns (cols 2..numCols), rows 3..end
+  if (sorted.length > 0 && totalRows > 2) {
+    sheet.getRange(3, 2, totalRows - 2, sorted.length).setHorizontalAlignment('center');
+  }
+
+  // Green/red cell colouring — individual cells, but grouped by colour
+  // Apply greens in one pass, reds in another
+  bestCells.forEach(function(cell) {
+    sheet.getRange(cell.r, cell.c).setFontColor('#27ae60').setFontWeight('bold');
+  });
+  worstCells.forEach(function(cell) {
+    sheet.getRange(cell.r, cell.c).setFontColor('#e74c3c').setFontWeight('bold');
+  });
+
+  // ── Final touches ─────────────────────────────────────────
   try { sheet.setFrozenRows(2); } catch(_) {}
   try { sheet.autoResizeColumns(1, numCols); } catch(_) {}
-
-  // Alternate row shading
-  const dataStart = 3;
-  const dataEnd   = sheetRow - 1;
-  for (let r = dataStart; r <= dataEnd; r++) {
-    const bg = sheet.getRange(r, 1).getBackground();
-    if (bg === '#4a6070' || bg === '#4a6070'.toLowerCase()) continue;
-    if (r % 2 === 0) {
-      sheet.getRange(r, 1, 1, numCols).setBackground('#f4f7f6');
-    }
-  }
 }
 
 // ── STATS CALCULATOR (GAS version mirrors client) ────────────

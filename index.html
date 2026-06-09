@@ -322,9 +322,13 @@ select.settings-input option{background:#fff;color:var(--text)}
 
 /* Rename players modal */
 .rename-player-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.rename-player-label{font-size:.85rem;color:var(--muted);min-width:60px;text-align:right;font-weight:600}
+.rename-player-label{font-size:.85rem;color:var(--muted);min-width:24px;text-align:right;font-weight:600}
 .rename-player-input{flex:1;padding:8px 12px;background:var(--card);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-size:.95rem}
 .rename-player-input:focus{outline:none;border-color:var(--primary)}
+.rename-dealer-tag{font-size:.75rem;color:var(--accent);font-weight:700;min-width:52px;text-align:right}
+.btn-reorder{background:var(--card2);border:1px solid var(--border);border-radius:4px;color:var(--text2);font-size:.65rem;padding:2px 4px;cursor:pointer;line-height:1;min-width:22px}
+.btn-reorder:hover:not(:disabled){background:var(--primary);color:#fff;border-color:var(--primary)}
+.btn-reorder:disabled{opacity:.3;cursor:default}
 .summary-table{width:100%;border-collapse:collapse;font-size:1.05rem}
 .summary-table th,.summary-table td{padding:12px 16px;border:1px solid var(--border)}
 .summary-table th{background:var(--primary);color:#fff;font-weight:700;text-align:center}
@@ -1398,42 +1402,84 @@ function updateEntryTotals(dealerIdx) {
   }
 }
 
-// ── RENAME PLAYERS ───────────────────────────────────────────
+// ── RENAME & REORDER PLAYERS ─────────────────────────────────
+let renamePlayerState = []; // [{name, originalIdx}] — current display order
+
 function openRenamePlayers() {
   const g = currentGame;
   if (!g) return;
-  let html = '';
-  g.players.forEach((name, i) => {
+  renamePlayerState = g.players.map((name, i) => ({ name, originalIdx: i }));
+  renderRenameForm();
+  openModal('modal-rename-players');
+}
+
+function renderRenameForm() {
+  const n = renamePlayerState.length;
+  let html = `<p style="font-size:.82rem;color:var(--muted);margin:0 0 10px">Last player is the dealer for round 1. Use ▲ ▼ to reorder.</p>`;
+  renamePlayerState.forEach((p, i) => {
+    const isDealer = (i === n - 1);
     html += `<div class="rename-player-row">
-      <div class="rename-player-label">P${i+1}</div>
-      <input type="text" class="rename-player-input" id="rename-input-${i}" value="${name}" placeholder="Player name">
+      <div style="display:flex;flex-direction:column;gap:2px;margin-right:6px">
+        <button class="btn-reorder" onclick="moveRenamePlayer(${i},-1)" ${i===0?'disabled':''} title="Move up">▲</button>
+        <button class="btn-reorder" onclick="moveRenamePlayer(${i}, 1)" ${i===n-1?'disabled':''} title="Move down">▼</button>
+      </div>
+      <div class="rename-player-label">${i + 1}</div>
+      <input type="text" class="rename-player-input" id="rename-input-${i}" value="${p.name}" placeholder="Player name">
+      ${isDealer ? '<span class="rename-dealer-tag">&#9733; Dealer</span>' : '<span class="rename-dealer-tag"></span>'}
     </div>`;
   });
   document.getElementById('rename-players-body').innerHTML = html;
-  openModal('modal-rename-players');
+}
+
+function moveRenamePlayer(idx, dir) {
+  // Snapshot current input values before moving
+  renamePlayerState.forEach((_, i) => {
+    const el = document.getElementById(`rename-input-${i}`);
+    if (el) renamePlayerState[i].name = el.value;
+  });
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= renamePlayerState.length) return;
+  [renamePlayerState[idx], renamePlayerState[newIdx]] = [renamePlayerState[newIdx], renamePlayerState[idx]];
+  renderRenameForm();
 }
 
 function saveRenamedPlayers() {
   const g = currentGame;
   if (!g) return;
-  const newNames = g.players.map((_, i) => {
+
+  // Snapshot any pending name edits
+  renamePlayerState.forEach((_, i) => {
     const el = document.getElementById(`rename-input-${i}`);
-    return el ? toProperCase(el.value.trim()) || g.players[i] : g.players[i];
+    if (el) renamePlayerState[i].name = toProperCase(el.value.trim()) || renamePlayerState[i].name;
   });
-  // Build old→new map
+
+  const newNames  = renamePlayerState.map(p => p.name);
+  const oldNames  = g.players;
+
+  // Build old-name → new-name map (accounts for renames)
   const oldToNew = {};
-  g.players.forEach((name, i) => { oldToNew[name] = newNames[i]; });
-  // Update players array
-  g.players = newNames;
-  // Update all completed round scores
+  renamePlayerState.forEach(p => { oldToNew[oldNames[p.originalIdx]] = p.name; });
+
+  // Remap completed round scores to new names
   g.completedRounds.forEach(rd => {
     rd.scores.forEach(s => { if (oldToNew[s.name]) s.name = oldToNew[s.name]; });
   });
-  // Update bid/tricks keys (they're indexed by position, no name remapping needed)
+
+  // Reorder bid/tricks arrays to match new position mapping
+  // renamePlayerState[i].originalIdx = which old-index slot is now at position i
+  const mapping = renamePlayerState.map(p => p.originalIdx);
+  g.currentBids   = mapping.map(oldIdx => g.currentBids[oldIdx]   ?? 0);
+  g.currentTricks = mapping.map(oldIdx => g.currentTricks[oldIdx] ?? 0);
+
+  // Recompute startingDealerIdx — find where the original starting dealer ended up
+  const newDealerPos = renamePlayerState.findIndex(p => p.originalIdx === g.startingDealerIdx);
+  if (newDealerPos >= 0) g.startingDealerIdx = newDealerPos;
+
+  g.players = newNames;
   saveLocal();
   closeModal('modal-rename-players');
   renderGameScreen();
-  showToast('Player names updated ✓', 'success');
+  showToast('Players updated ✓', 'success');
 }
 
 
@@ -1803,6 +1849,26 @@ function ensureTournament() {
 }
 
 // ── NEW GAME MODAL ───────────────────────────────────────────
+// ── NEXT GAME PLAYER ROTATION ────────────────────────────────
+// Given the last completed game, return the player array rotated so
+// the player AFTER the last-round dealer is now the last (= new dealer).
+function getNextGamePlayerOrder(lastGame) {
+  if (!lastGame || !lastGame.players || !lastGame.rounds || lastGame.rounds.length === 0) return null;
+  const players = lastGame.players;
+  const n = players.length;
+  // startingDealerIdx: older games stored 0 (first player = dealer);
+  // newer games store n-1 (last player = dealer). Support both.
+  const startIdx = (lastGame.startingDealerIdx !== undefined) ? lastGame.startingDealerIdx : (n - 1);
+  const lastRoundIdx = lastGame.rounds.length - 1;
+  const lastDealerIdx = (startIdx + lastRoundIdx) % n;
+  const nextDealerIdx = (lastDealerIdx + 1) % n;
+  // Build rotated array: nextDealer goes to the last slot (= new round-1 dealer)
+  const rotated = [];
+  for (let i = 1; i <= n; i++) rotated.push(players[(nextDealerIdx + i) % n]);
+  // rotated[n-1] = players[nextDealerIdx]  ← next dealer is last ✓
+  return rotated;
+}
+
 function openNewGame() {
   // Check if 20+ games played
   const games = currentTournament.games || [];
@@ -1815,10 +1881,11 @@ function openNewGame() {
     return;
   }
 
-  // Default players
+  // Default player order: rotate from last game so next dealer is last
   let defaultPlayers = DEFAULT_PLAYERS;
   if (games.length > 0) {
-    defaultPlayers = games[games.length-1].players.join(', ');
+    const rotated = getNextGamePlayerOrder(games[games.length - 1]);
+    defaultPlayers = (rotated || games[games.length - 1].players).join('\n');
   }
   UI['new-game-players'].value = defaultPlayers;
   updatePlayerCountHint();
@@ -1876,7 +1943,7 @@ function startGame() {
     currentBids: new Array(players.length).fill(0),
     currentTricks: new Array(players.length).fill(0),
     phase: 'bid',
-    startingDealerIdx: 0
+    startingDealerIdx: players.length - 1   // last player in list = round 1 dealer
   };
   saveLocal();
   closeModal('modal-new-game');

@@ -170,31 +170,50 @@ body{display:flex;flex-direction:column}
 /* ===== DARK THEME ===== */
 [data-theme="dark"]{
   --primary:#2c3e50;--primary-dk:#1a252f;--primary-lt:#3d5166;
-  --accent:#e74c3c;--success:#27ae60;--success-lt:#1a3a28;
+  --accent:#e74c3c;--success:#27ae60;--success-lt:#1a3828;
   --danger:#c0392b;--warning:#f39c12;
-  --bg:#0d1117;--surface:#161b22;--card:#1e2430;--card2:#252d3d;
-  --border:#30363d;--border2:#3d4451;
-  --text:#e2e8f0;--text2:#8b949e;--muted:#6e7681;
-  --shadow:rgba(0,0,0,.6);
+  --bg:#1e2230;--surface:#252b3b;--card:#2d3347;--card2:#353d54;
+  --border:#424d65;--border2:#505c75;
+  --text:#dde3ee;--text2:#9aa5bb;--muted:#6b7a96;
+  --shadow:rgba(0,0,0,.5);
 }
-[data-theme="dark"] .stats-table tr:nth-child(even) td{background:#1a2030}
-[data-theme="dark"] .stats-table tr:hover td{background:#222a3a}
-[data-theme="dark"] .stats-section-row td{background:#1e2430!important;color:#74b9ff}
+[data-theme="dark"] body{background:#12151f!important}
+/* Section label — lighter in dark mode */
+[data-theme="dark"] .section-label{color:#c5d0e8}
+/* Stats table — high-contrast alternating rows */
+[data-theme="dark"] .stats-table tr:nth-child(odd) td{background:#2d3347}
+[data-theme="dark"] .stats-table tr:nth-child(even) td{background:#1f2638}
+[data-theme="dark"] .stats-table tr:hover td{background:#2e3a58}
+[data-theme="dark"] .stats-section-row td{background:#1a1f30!important;color:#89a0d0;border-color:#363f5a}
+/* Stat highlights — bright + tinted so always visible */
+[data-theme="dark"] .stats-table td.stat-best{color:#2ecc71!important;font-weight:700!important;background:rgba(46,204,113,.18)!important}
+[data-theme="dark"] .stats-table td.stat-worst{color:#ff6b6b!important;font-weight:700!important;background:rgba(255,107,107,.18)!important}
+/* Rounds table — matching contrast */
+[data-theme="dark"] .rounds-table tr:nth-child(odd) td{background:#2d3347}
+[data-theme="dark"] .rounds-table tr:nth-child(even) td{background:#1f2638}
+[data-theme="dark"] .rounds-table tr:hover td{background:#2e3a58}
+[data-theme="dark"] .rounds-table td.made{color:#2ecc71!important;background:rgba(46,204,113,.18)!important}
+[data-theme="dark"] .rounds-table td.missed{color:#ff6b6b!important;background:rgba(255,107,107,.15)!important}
+[data-theme="dark"] .round-row-header td{background:#1a1f30!important;color:#8899bb;border-color:#363f5a}
+/* New game textarea & settings inputs — readable in dark mode */
+[data-theme="dark"] .settings-input{background:#1a1f30!important;color:#dde3ee!important;border-color:var(--border2)}
+/* Misc */
 [data-theme="dark"] .entry-col{background:var(--card);border-color:var(--border)}
 [data-theme="dark"] .entry-input{background:var(--card2);color:var(--text);border-color:var(--border2)}
 [data-theme="dark"] .modal-footer{background:var(--card)}
-[data-theme="dark"] .settings-input{background:var(--card);color:var(--text);border-color:var(--border2)}
 [data-theme="dark"] .settings-panel{border-color:var(--border2)}
-[data-theme="dark"] .rounds-table tr:nth-child(even) td{background:#1a2030}
-[data-theme="dark"] .summary-table tr:nth-child(even) td{background:#1a2030}
+[data-theme="dark"] .summary-table tr:nth-child(even) td{background:#1f2638}
 [data-theme="dark"] .edit-round-item{background:var(--card);border-color:var(--border)}
 [data-theme="dark"] .edit-round-item:hover{background:var(--card2)}
 @media(prefers-color-scheme:dark){
   html:not([data-theme="light"]):not([data-theme="dark"]) {
-    --bg:#0d1117;--surface:#161b22;--card:#1e2430;--card2:#252d3d;
-    --border:#30363d;--border2:#3d4451;--text:#e2e8f0;--text2:#8b949e;
-    --muted:#6e7681;--shadow:rgba(0,0,0,.6);--success-lt:#1a3a28;
+    --bg:#1e2230;--surface:#252b3b;--card:#2d3347;--card2:#353d54;
+    --border:#424d65;--border2:#505c75;--text:#dde3ee;--text2:#9aa5bb;
+    --muted:#6b7a96;--shadow:rgba(0,0,0,.5);--success-lt:#1a3828;
   }
+  html:not([data-theme="light"]):not([data-theme="dark"]) body{background:#12151f!important}
+  html:not([data-theme="light"]):not([data-theme="dark"]) .section-label{color:#c5d0e8}
+  html:not([data-theme="light"]):not([data-theme="dark"]) .settings-input{background:#1a1f30!important;color:#dde3ee!important}
 }
 
 /* ===== ENTRY FOOTER ===== */
@@ -203,18 +222,20 @@ body{display:flex;flex-direction:column}
 
 /* ===== ROUNDS HISTORY TABLE ===== */
 .rounds-history{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;background:var(--surface)}
-.rounds-table{width:max-content;min-width:100%;border-collapse:collapse;font-size:.82rem}
-.rounds-table th,.rounds-table td{padding:6px 10px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
-.rounds-table th{background:var(--primary);color:#fff;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;position:sticky;top:0;z-index:2;font-weight:700}
-.rounds-table td:first-child,.rounds-table th:first-child{position:sticky;left:0;background:var(--card);text-align:center;z-index:1;padding-left:8px;padding-right:8px;font-weight:600;color:var(--text2)}
-.rounds-table th:first-child{background:var(--primary);color:rgba(255,255,255,.75);z-index:3}
-.rounds-table td.made{color:var(--success);background:var(--success-lt)}
-.rounds-table td.missed{color:var(--accent);background:#ffebee}
-.rounds-table td.score-cell{font-family:var(--font-mono);font-weight:700;color:var(--primary)}
+.rounds-table{width:max-content;min-width:100%;border-collapse:collapse;font-size:1rem}
+.rounds-table th,.rounds-table td{padding:10px 12px;text-align:center;border:1px solid var(--border);white-space:nowrap}
+.rounds-table th{background:var(--primary);color:#fff;font-size:.95rem;letter-spacing:.04em;position:sticky;top:0;z-index:2;font-weight:700;border-color:rgba(255,255,255,.15)}
+.rounds-table td:first-child,.rounds-table th:first-child{position:sticky;left:0;background:var(--card);text-align:center;z-index:1;padding-left:10px;padding-right:10px;font-weight:700;color:var(--text2);border-right:2px solid var(--border2)}
+.rounds-table th:first-child{background:var(--primary);color:rgba(255,255,255,.8);z-index:3;border-right-color:rgba(255,255,255,.25)}
+.rounds-table tr:nth-child(even) td{background:#f6f8fa}
+.rounds-table tr:hover td{background:#edf2f7}
+.rounds-table td.made{color:var(--success)!important;background:rgba(39,174,96,.1)!important;font-weight:700}
+.rounds-table td.missed{color:var(--accent)!important;background:rgba(231,76,60,.08)!important;font-weight:700}
+.rounds-table td.score-cell{font-family:var(--font-mono);font-weight:700}
 .trump-sym{margin-right:2px}
 .round-row-header{background:var(--card2)!important}
-.round-row-header td{color:var(--muted);font-size:.68rem;letter-spacing:.06em;padding:4px 10px;font-weight:600;text-transform:uppercase;background:var(--card2)!important}
-.round-total-row td{background:var(--primary)!important;font-family:var(--font-mono);font-weight:700;color:#fff;border-bottom:none;position:sticky;top:0}
+.round-row-header td{color:var(--muted);font-size:.82rem;letter-spacing:.06em;padding:8px 12px;font-weight:700;text-transform:uppercase;background:var(--card2)!important;border:1px solid var(--border)}
+.round-total-row td{background:var(--primary)!important;font-family:var(--font-mono);font-weight:700;color:#fff;border:1px solid rgba(255,255,255,.15);position:sticky;top:0}
 .round-total-row td:first-child{background:var(--primary)!important;color:rgba(255,255,255,.8)}
 
 /* ===== LANDSCAPE compact ===== */
@@ -1415,7 +1436,10 @@ function openRenamePlayers() {
 
 function renderRenameForm() {
   const n = renamePlayerState.length;
-  let html = `<p style="font-size:.82rem;color:var(--muted);margin:0 0 10px">Last player is the dealer for round 1. Use ▲ ▼ to reorder.</p>`;
+  let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <span style="font-size:.82rem;color:var(--muted)">Last player = Dealer for Round 1</span>
+    <button class="btn btn-ghost btn-sm" onclick="cycleRenameOrder()" title="Rotate everyone: last moves to slot 1, rest shift down">&#8635; Cycle All</button>
+  </div>`;
   renamePlayerState.forEach((p, i) => {
     const isDealer = (i === n - 1);
     html += `<div class="rename-player-row">
@@ -1425,7 +1449,7 @@ function renderRenameForm() {
       </div>
       <div class="rename-player-label">${i + 1}</div>
       <input type="text" class="rename-player-input" id="rename-input-${i}" value="${p.name}" placeholder="Player name">
-      ${isDealer ? '<span class="rename-dealer-tag">&#9733; Dealer</span>' : '<span class="rename-dealer-tag"></span>'}
+      <span class="rename-dealer-tag">${isDealer ? '&#9733; Dealer' : ''}</span>
     </div>`;
   });
   document.getElementById('rename-players-body').innerHTML = html;
@@ -1443,6 +1467,18 @@ function moveRenamePlayer(idx, dir) {
   renderRenameForm();
 }
 
+function cycleRenameOrder() {
+  // Snapshot current names before moving
+  renamePlayerState.forEach((_, i) => {
+    const el = document.getElementById(`rename-input-${i}`);
+    if (el) renamePlayerState[i].name = el.value;
+  });
+  // Player 1→2, 2→3, …, n→1: last moves to front, rest shift down one slot
+  const last = renamePlayerState.pop();
+  renamePlayerState.unshift(last);
+  renderRenameForm();
+}
+
 function saveRenamedPlayers() {
   const g = currentGame;
   if (!g) return;
@@ -1453,33 +1489,37 @@ function saveRenamedPlayers() {
     if (el) renamePlayerState[i].name = toProperCase(el.value.trim()) || renamePlayerState[i].name;
   });
 
-  const newNames  = renamePlayerState.map(p => p.name);
-  const oldNames  = g.players;
+  const newNames = renamePlayerState.map(p => p.name);
+  const oldNames = g.players;
 
-  // Build old-name → new-name map (accounts for renames)
+  // Build old-name → new-name map
   const oldToNew = {};
   renamePlayerState.forEach(p => { oldToNew[oldNames[p.originalIdx]] = p.name; });
 
-  // Remap completed round scores to new names
+  // Remap completed round scores
   g.completedRounds.forEach(rd => {
     rd.scores.forEach(s => { if (oldToNew[s.name]) s.name = oldToNew[s.name]; });
   });
 
-  // Reorder bid/tricks arrays to match new position mapping
-  // renamePlayerState[i].originalIdx = which old-index slot is now at position i
-  const mapping = renamePlayerState.map(p => p.originalIdx);
-  g.currentBids   = mapping.map(oldIdx => g.currentBids[oldIdx]   ?? 0);
-  g.currentTricks = mapping.map(oldIdx => g.currentTricks[oldIdx] ?? 0);
+  // Reorder bid/tricks by new position — snapshot originals first to avoid mutation issues
+  const mapping   = renamePlayerState.map(p => p.originalIdx);
+  const snapBids   = g.currentBids.slice();
+  const snapTricks = g.currentTricks.slice();
+  g.currentBids   = mapping.map(oldIdx => snapBids[oldIdx]   ?? 0);
+  g.currentTricks = mapping.map(oldIdx => snapTricks[oldIdx] ?? 0);
 
-  // Recompute startingDealerIdx — find where the original starting dealer ended up
+  // Recompute startingDealerIdx for new player order
   const newDealerPos = renamePlayerState.findIndex(p => p.originalIdx === g.startingDealerIdx);
   if (newDealerPos >= 0) g.startingDealerIdx = newDealerPos;
 
   g.players = newNames;
   saveLocal();
   closeModal('modal-rename-players');
-  renderGameScreen();
-  showToast('Players updated ✓', 'success');
+  // Small delay so modal close animation completes before re-render
+  setTimeout(() => {
+    renderGameScreen();
+    showToast('Players updated ✓', 'success');
+  }, 60);
 }
 
 

@@ -236,8 +236,8 @@ body{display:flex;flex-direction:column}
 /* ===== ROUNDS HISTORY TABLE ===== */
 .rounds-history{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;background:var(--surface)}
 .rounds-table{width:max-content;min-width:100%;border-collapse:collapse;font-size:1rem}
-.rounds-table th,.rounds-table td{padding:10px 12px;text-align:center;border:1px solid var(--border);white-space:nowrap}
-.rounds-table th{background:var(--primary);color:#fff;font-size:.95rem;letter-spacing:.04em;position:sticky;top:0;z-index:2;font-weight:700;border-color:rgba(255,255,255,.15)}
+.rounds-table th,.rounds-table td{padding:6px 10px;text-align:center;border:1px solid var(--border);white-space:nowrap}
+.rounds-table th{background:var(--primary);color:#fff;font-size:.72rem;letter-spacing:.04em;text-transform:uppercase;position:sticky;top:0;z-index:2;font-weight:700;border-color:rgba(255,255,255,.15)}
 .rounds-table td:first-child,.rounds-table th:first-child{position:sticky;left:0;background:var(--card);text-align:center;z-index:1;padding-left:10px;padding-right:10px;font-weight:700;color:var(--text2);border-right:2px solid var(--border2)}
 .rounds-table th:first-child{background:var(--primary);color:rgba(255,255,255,.8);z-index:3;border-right-color:rgba(255,255,255,.25)}
 .rounds-table tr:nth-child(even) td{background:#f6f8fa}
@@ -247,7 +247,7 @@ body{display:flex;flex-direction:column}
 .rounds-table td.score-cell{font-family:var(--font-mono);font-weight:700}
 .trump-sym{margin-right:2px}
 .round-row-header{background:var(--card2)!important}
-.round-row-header td{color:var(--muted);font-size:.82rem;letter-spacing:.06em;padding:8px 12px;font-weight:700;text-transform:uppercase;background:var(--card2)!important;border:1px solid var(--border)}
+.round-row-header td{color:var(--muted);font-size:.68rem;letter-spacing:.06em;padding:4px 10px;font-weight:700;text-transform:uppercase;background:var(--card2)!important;border:1px solid var(--border)}
 .round-total-row td{background:var(--primary)!important;font-family:var(--font-mono);font-weight:700;color:#fff;border:1px solid rgba(255,255,255,.15);position:sticky;top:0}
 .round-total-row td:first-child{background:var(--primary)!important;color:rgba(255,255,255,.8)}
 
@@ -310,7 +310,7 @@ select.settings-input option{background:#fff;color:var(--text)}
 .edit-round-item{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;cursor:pointer;transition:border-color .15s}
 .edit-round-item:hover{border-color:var(--primary);background:var(--card2)}
 .edit-round-item.selected{border-color:var(--primary);background:#eaf0f6;border-width:2px}
-.edit-round-num{font-family:var(--font-mono);font-size:.9rem;font-weight:700;color:var(--primary);min-width:28px}
+.edit-round-num{font-family:var(--font-mono);font-size:.9rem;font-weight:700;color:var(--muted);min-width:28px}
 .edit-round-info{font-size:.82rem;color:var(--muted)}
 
 /* ===== NEW GAME ===== */
@@ -395,6 +395,20 @@ td.suit-nt{color:var(--muted)}
   body{background:#e8edf0;align-items:center;justify-content:center}
   .app-container{border-radius:16px;height:calc(100vh - 32px);margin:16px auto}
 }
+
+/* Suit colours — Clubs/Spades lighter in dark mode for visibility */
+[data-theme="dark"] td.suit-blue{color:#7ec8f0!important;font-weight:700}
+[data-theme="dark"] td.suit-red{color:#ff7675!important;font-weight:700}
+[data-theme="dark"] td.suit-nt{color:#b0bec5!important;font-weight:600}
+/* Dealer name */
+[data-theme="dark"] .dealer-name{color:#c5d0e8!important}
+/* ALL ghost/cancel buttons — white text in dark mode (yellow box fix) */
+[data-theme="dark"] .btn-ghost{color:#e2e8f0!important;border-color:#505c75!important;background:var(--card)!important}
+[data-theme="dark"] .btn-ghost:hover{background:var(--card2)!important;color:#fff!important}
+/* Settings dropdowns — styled for dark mode readability */
+[data-theme="dark"] select{background:#2d3347!important;color:#dde3ee!important;border-color:var(--border2)!important}
+[data-theme="dark"] select option{background:#2d3347;color:#dde3ee}
+[data-theme="dark"] select option:checked{background:var(--primary);color:#fff}
 
 /* ===== RESPONSIVE ===== */
 @media(min-width:480px){
@@ -1556,7 +1570,7 @@ function renderRoundsHistory() {
   if (oldCg) oldCg.remove();
   const cg = document.createElement('colgroup');
   const addCol = (w) => { const c = document.createElement('col'); if (w) c.style.width = w; cg.appendChild(c); };
-  addCol('48px'); // Rnd — fixed
+  addCol('72px'); // Rnd — fixed
   addCol('60px'); // Trump — fixed 60px
   g.players.forEach(() => { addCol(); addCol(); }); // Bid + Score per player
   table.insertBefore(cg, table.firstChild);
@@ -1564,7 +1578,7 @@ function renderRoundsHistory() {
   table.style.width       = '100%';
 
   // Column header: Rnd | Trump | [Player centred over colspan=2] ...
-  let headHtml = `<th>Rnd</th><th>Trump</th>`;
+  let headHtml = `<th>Round</th><th>Trump</th>`;
   g.players.forEach(p => headHtml += `<th colspan="2" style="text-align:center;border-left:2px solid rgba(255,255,255,.25)">${p}</th>`);
   document.getElementById('rounds-header-row').innerHTML = headHtml;
 
@@ -1576,7 +1590,7 @@ function renderRoundsHistory() {
   // Running totals pinned at top
   if (g.completedRounds.length > 0) {
     const totals = calcGameScore(g.completedRounds, g.players);
-    bodyHtml += `<tr class="round-total-row"><td>Tot</td><td></td>`;
+    bodyHtml += `<tr class="round-total-row"><td>Total</td><td></td>`;
     g.players.forEach(p => bodyHtml += `<td class="player-border-l"></td><td style="text-align:center">${totals[p] ?? 0}</td>`);
     bodyHtml += `</tr>`;
   }

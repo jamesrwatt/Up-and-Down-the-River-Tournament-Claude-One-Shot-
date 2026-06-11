@@ -205,6 +205,19 @@ body{display:flex;flex-direction:column}
 [data-theme="dark"] .summary-table tr:nth-child(even) td{background:#1f2638}
 [data-theme="dark"] .edit-round-item{background:var(--card);border-color:var(--border)}
 [data-theme="dark"] .edit-round-item:hover{background:var(--card2)}
+/* Edit round card names — white in dark mode */
+[data-theme="dark"] .edit-player-card-name{color:#dde3ee!important}
+[data-theme="dark"] .edit-player-card{background:#2d3347;border-color:#505c75}
+[data-theme="dark"] .edit-input-label{color:#9aa5bb}
+/* Game header buttons (Exit, Edit, Names) — readable in dark mode */
+[data-theme="dark"] .game-header .btn{background:#3d5166!important;color:#e2e8f0!important;border-color:#4e6278!important}
+[data-theme="dark"] .game-header .btn:hover{background:#4a6078!important}
+/* Dealer label and phase label in dark mode */
+[data-theme="dark"] .dealer-label{color:#b0c0d8!important}
+[data-theme="dark"] .phase-label{color:#e2e8f0!important}
+/* Leaderboard filter chips in dark mode */
+[data-theme="dark"] .lb-filter-chip{background:var(--card);color:var(--text2);border-color:var(--border2)}
+[data-theme="dark"] .lb-filter-chip.active{background:var(--primary);color:#fff}
 @media(prefers-color-scheme:dark){
   html:not([data-theme="light"]):not([data-theme="dark"]) {
     --bg:#1e2230;--surface:#252b3b;--card:#2d3347;--card2:#353d54;
@@ -280,7 +293,9 @@ select.settings-input option{background:#fff;color:var(--text)}
 .confirm-msg{font-size:.95rem;color:var(--text2);line-height:1.5;margin-bottom:4px}
 
 /* ===== LEADERBOARD ===== */
-.lb-filter-row{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:4px}
+.lb-filter-row{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:6px;flex-wrap:nowrap;scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+.lb-filter-row::-webkit-scrollbar{height:8px;display:block}
+.lb-filter-row::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
 .lb-filter-chip{padding:5px 14px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--muted);font-size:.8rem;cursor:pointer;white-space:nowrap;font-weight:500}
 .lb-filter-chip.active{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:700}
 
@@ -339,7 +354,7 @@ select.settings-input option{background:#fff;color:var(--text)}
 .edit-player-inputs{display:flex;flex-direction:column;gap:8px;align-items:center;width:100%}
 .edit-input-group{display:flex;flex-direction:column;align-items:center;gap:4px}
 .edit-input-label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:600;text-align:center}
-.edit-player-grid{display:flex;gap:12px;overflow-x:auto;padding:4px 0 8px;-webkit-overflow-scrolling:touch}
+.edit-player-grid{display:flex;gap:12px;padding:4px 0 8px;flex-wrap:nowrap;min-width:max-content}
 
 /* Rename players modal */
 .rename-player-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
@@ -1508,11 +1523,12 @@ function saveRenamedPlayers() {
   g.currentBids   = mapping.map(oldIdx => snapBids[oldIdx]   ?? 0);
   g.currentTricks = mapping.map(oldIdx => snapTricks[oldIdx] ?? 0);
 
-  // Recompute startingDealerIdx for new player order
-  const newDealerPos = renamePlayerState.findIndex(p => p.originalIdx === g.startingDealerIdx);
-  if (newDealerPos >= 0) g.startingDealerIdx = newDealerPos;
-
   g.players = newNames;
+
+  // THE KEY FIX: last player in the new order is always the round-1 dealer (our convention).
+  // This ensures renderEntryGrid immediately shows the new order with the correct dealer rightmost.
+  g.startingDealerIdx = g.players.length - 1;
+
   saveLocal();
   closeModal('modal-rename-players');
   // Small delay so modal close animation completes before re-render

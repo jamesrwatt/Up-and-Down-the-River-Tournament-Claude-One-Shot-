@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#2c3e50">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -47,7 +47,8 @@
   --font-mono:'Courier New',monospace;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:16px}
+html,body{width:100%;width:100vw;height:100%;height:100vh;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:16px}
+@supports (width:100dvw){html,body{width:100dvw;height:100dvh}}
 body{display:flex;flex-direction:column}
 
 /* ===== SCREENS ===== */
@@ -371,7 +372,8 @@ td.suit-blue{color:var(--primary);font-weight:600}
 td.suit-nt{color:var(--muted)}
 
 /* ===== APP CONTAINER (centres + constrains the whole app) ===== */
-.app-container{width:100%;max-width:1200px;margin:0 auto;height:100%;display:flex;flex-direction:column;background:var(--surface);box-shadow:0 4px 30px rgba(0,0,0,.15);overflow:hidden;position:relative}
+.app-container{width:100%;max-width:1200px;margin:0 auto;height:100vh;display:flex;flex-direction:column;background:var(--surface);box-shadow:0 4px 30px rgba(0,0,0,.15);overflow:hidden;position:relative}
+@supports (width:100dvw){.app-container{width:min(100dvw,1200px);height:100dvh}}
 .app-container *::-webkit-scrollbar{width:0;height:0;background:transparent}
 .app-container *{scrollbar-width:none;-ms-overflow-style:none}
 
@@ -429,6 +431,9 @@ td.suit-nt{color:var(--muted)}
 @media(min-width:1220px){
   body{background:#e8edf0;align-items:center;justify-content:center}
   .app-container{border-radius:16px;height:calc(100vh - 32px);margin:16px auto}
+}
+@supports (height:100dvh){
+  @media(min-width:1220px){.app-container{height:calc(100dvh - 32px)}}
 }
 
 /* Suit colours — Clubs/Spades lighter in dark mode for visibility */
@@ -2335,6 +2340,34 @@ function init() {
 }
 
 document.addEventListener('DOMContentLoaded', init);
+
+// ── ORIENTATION CHANGE — force layout reflow on Android tablets ────────────
+// Some Android browsers (inc. Brave in tablet mode) don't recalculate vw/vh
+// immediately on rotation. We read the real innerWidth/Height after the
+// rotation settles (300ms) and apply them directly so the app fills the screen.
+function fixOrientationLayout() {
+  const app = document.querySelector('.app-container');
+  if (!app) return;
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  // Apply real pixel dimensions as overrides, capped at 1200px width
+  app.style.width  = Math.min(w, 1200) + 'px';
+  app.style.height = h + 'px';
+  document.documentElement.style.height = h + 'px';
+  document.body.style.width  = w + 'px';
+  document.body.style.height = h + 'px';
+}
+
+// Fire on orientation change and on resize (covers all tablet rotation scenarios)
+window.addEventListener('orientationchange', function() {
+  // Short delay lets the browser finish rotating before we read dimensions
+  setTimeout(fixOrientationLayout, 300);
+});
+window.addEventListener('resize', function() {
+  // Debounce: only trigger after resize has settled (avoids thrashing)
+  clearTimeout(window._resizeTimer);
+  window._resizeTimer = setTimeout(fixOrientationLayout, 200);
+});
 
 </script>
 

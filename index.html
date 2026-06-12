@@ -57,9 +57,10 @@ body{display:flex;flex-direction:column}
 
 /* ===== SCROLLABLE AREA ===== */
 .scroll-area{flex:1;overflow-y:auto;overflow-x:hidden;padding:12px;-webkit-overflow-scrolling:touch}
-.scroll-area::-webkit-scrollbar{width:4px}
-.scroll-area::-webkit-scrollbar-track{background:transparent}
-.scroll-area::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+.scroll-area::-webkit-scrollbar{width:8px;height:8px}
+.scroll-area::-webkit-scrollbar-track{background:var(--card2)}
+.scroll-area::-webkit-scrollbar-thumb{background:var(--border2);border-radius:5px;border:2px solid var(--card2)}
+.scroll-area::-webkit-scrollbar-thumb:hover{background:var(--muted)}
 
 /* ===== HEADER ===== */
 .app-header{background:var(--primary);padding:10px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;box-shadow:0 2px 8px var(--shadow)}
@@ -152,8 +153,10 @@ body{display:flex;flex-direction:column}
 
 /* Player columns */
 .entry-grid{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch;align-items:stretch}
-.entry-grid::-webkit-scrollbar{height:3px}
-.entry-grid::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.entry-grid::-webkit-scrollbar{height:8px}
+.entry-grid::-webkit-scrollbar-track{background:var(--card2)}
+.entry-grid::-webkit-scrollbar-thumb{background:var(--border2);border-radius:5px;border:2px solid var(--card2)}
+.entry-grid::-webkit-scrollbar-thumb:hover{background:var(--muted)}
 .entry-col{display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--card);border:2px solid var(--border);border-radius:10px;padding:6px 8px;min-width:68px;flex:1;position:relative;transition:border-color .15s}
 .entry-col.is-dealer{border-color:var(--accent)!important;background:#fff5f5}
 .entry-col-name{font-size:.7rem;color:var(--text2);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px;width:100%;font-weight:600}
@@ -2122,8 +2125,8 @@ function saveSettings() {
     const prevRole = localStorage.getItem('role') || 'viewer';
     const role     = roleEl.value;
 
-    // Admin requires password verification
-    if (role === 'admin') {
+    // Admin requires password verification — but skip if already admin (allows theme change without re-auth)
+    if (role === 'admin' && prevRole !== 'admin') {
       const pw = pwEl ? pwEl.value : '';
       if (pw !== ADMIN_PASSWORD) {
         showToast('Incorrect admin password.', 'error');

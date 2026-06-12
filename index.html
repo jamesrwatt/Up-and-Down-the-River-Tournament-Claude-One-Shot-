@@ -57,10 +57,6 @@ body{display:flex;flex-direction:column}
 
 /* ===== SCROLLABLE AREA ===== */
 .scroll-area{flex:1;overflow-y:auto;overflow-x:hidden;padding:12px;-webkit-overflow-scrolling:touch}
-.scroll-area::-webkit-scrollbar{width:8px;height:8px}
-.scroll-area::-webkit-scrollbar-track{background:var(--card2)}
-.scroll-area::-webkit-scrollbar-thumb{background:var(--border2);border-radius:5px;border:2px solid var(--card2)}
-.scroll-area::-webkit-scrollbar-thumb:hover{background:var(--muted)}
 
 /* ===== HEADER ===== */
 .app-header{background:var(--primary);padding:10px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0;box-shadow:0 2px 8px var(--shadow)}
@@ -153,10 +149,6 @@ body{display:flex;flex-direction:column}
 
 /* Player columns */
 .entry-grid{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;-webkit-overflow-scrolling:touch;align-items:stretch}
-.entry-grid::-webkit-scrollbar{height:8px}
-.entry-grid::-webkit-scrollbar-track{background:var(--card2)}
-.entry-grid::-webkit-scrollbar-thumb{background:var(--border2);border-radius:5px;border:2px solid var(--card2)}
-.entry-grid::-webkit-scrollbar-thumb:hover{background:var(--muted)}
 .entry-col{display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--card);border:2px solid var(--border);border-radius:10px;padding:6px 8px;min-width:68px;flex:1;position:relative;transition:border-color .15s}
 .entry-col.is-dealer{border-color:var(--accent)!important;background:#fff5f5}
 .entry-col-name{font-size:.7rem;color:var(--text2);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px;width:100%;font-weight:600}
@@ -296,11 +288,7 @@ select.settings-input option{background:#fff;color:var(--text)}
 .confirm-msg{font-size:.95rem;color:var(--text2);line-height:1.5;margin-bottom:4px}
 
 /* ===== LEADERBOARD ===== */
-.lb-filter-row{display:flex;gap:6px;margin-bottom:0;padding:8px 0 10px;flex-wrap:nowrap;overflow-x:scroll!important;scrollbar-width:thin!important;scrollbar-color:var(--border2) var(--card)!important;-ms-overflow-style:auto!important}
-.lb-filter-row::-webkit-scrollbar{height:10px!important;display:block!important}
-.lb-filter-row::-webkit-scrollbar-track{background:var(--card2)}
-.lb-filter-row::-webkit-scrollbar-thumb{background:var(--border2);border-radius:5px;border:2px solid var(--card2)}
-.lb-filter-row::-webkit-scrollbar-thumb:hover{background:var(--muted)}
+.lb-filter-row{display:flex;gap:6px;margin-bottom:0;padding:8px 0 10px;flex-wrap:nowrap}
 .lb-filter-chip{padding:5px 14px;border-radius:20px;border:1px solid var(--border2);background:var(--surface);color:var(--muted);font-size:.8rem;cursor:pointer;white-space:nowrap;font-weight:500}
 .lb-filter-chip.active{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:700}
 
@@ -386,16 +374,58 @@ td.suit-nt{color:var(--muted)}
 .app-container{width:100%;max-width:1200px;margin:0 auto;height:100%;display:flex;flex-direction:column;background:var(--surface);box-shadow:0 4px 30px rgba(0,0,0,.15);overflow:hidden;position:relative}
 .app-container *::-webkit-scrollbar{width:0;height:0;background:transparent}
 .app-container *{scrollbar-width:none;-ms-overflow-style:none}
-/* Re-enable visible scrollbars specifically for scrollable data surfaces */
-.stats-outer{scrollbar-width:thin!important;-ms-overflow-style:auto!important;overflow-x:scroll!important}
-.stats-outer::-webkit-scrollbar{width:10px!important;height:10px!important;display:block!important}
-.stats-outer::-webkit-scrollbar-track{background:var(--card2)}
-.stats-outer::-webkit-scrollbar-thumb{background:var(--border2);border-radius:5px;border:2px solid var(--card2)}
-.stats-outer::-webkit-scrollbar-thumb:hover{background:var(--muted)}
-#edit-round-body{scrollbar-width:thin!important;-ms-overflow-style:auto!important;overflow-x:scroll!important}
-#edit-round-body::-webkit-scrollbar{width:10px!important;height:10px!important;display:block!important}
-#edit-round-body::-webkit-scrollbar-track{background:var(--card2)}
-#edit-round-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:5px;border:2px solid var(--card2)}
+
+/* ── Unified scrollbar style — all !important to beat the wildcard above ─────
+   Applies to every explicitly scrollable surface in the app.
+   Track: var(--card2) background  |  Thumb: var(--border2) with 2px inset border */
+.stats-outer,.scroll-area,.entry-grid,#edit-round-body,.lb-filter-row,.modal-body{
+  scrollbar-width:thin!important;
+  scrollbar-color:var(--border2) var(--card2)!important;
+  -ms-overflow-style:auto!important;
+}
+.stats-outer{overflow-x:scroll!important;overflow-y:auto!important}
+.scroll-area{overflow-y:scroll!important}
+#edit-round-body{overflow-x:scroll!important;overflow-y:auto!important}
+.lb-filter-row{overflow-x:scroll!important}
+/* Webkit — size (10px square for vertical, 10px height for horizontal-only) */
+.stats-outer::-webkit-scrollbar,
+.scroll-area::-webkit-scrollbar,
+.entry-grid::-webkit-scrollbar,
+#edit-round-body::-webkit-scrollbar,
+.lb-filter-row::-webkit-scrollbar,
+.modal-body::-webkit-scrollbar{
+  width:10px!important;height:10px!important;display:block!important;
+}
+/* Webkit — track */
+.stats-outer::-webkit-scrollbar-track,
+.scroll-area::-webkit-scrollbar-track,
+.entry-grid::-webkit-scrollbar-track,
+#edit-round-body::-webkit-scrollbar-track,
+.lb-filter-row::-webkit-scrollbar-track,
+.modal-body::-webkit-scrollbar-track{
+  background:var(--card2)!important;
+  border-radius:5px!important;
+}
+/* Webkit — thumb */
+.stats-outer::-webkit-scrollbar-thumb,
+.scroll-area::-webkit-scrollbar-thumb,
+.entry-grid::-webkit-scrollbar-thumb,
+#edit-round-body::-webkit-scrollbar-thumb,
+.lb-filter-row::-webkit-scrollbar-thumb,
+.modal-body::-webkit-scrollbar-thumb{
+  background:var(--border2)!important;
+  border-radius:5px!important;
+  border:2px solid var(--card2)!important;
+}
+/* Webkit — thumb hover */
+.stats-outer::-webkit-scrollbar-thumb:hover,
+.scroll-area::-webkit-scrollbar-thumb:hover,
+.entry-grid::-webkit-scrollbar-thumb:hover,
+#edit-round-body::-webkit-scrollbar-thumb:hover,
+.lb-filter-row::-webkit-scrollbar-thumb:hover,
+.modal-body::-webkit-scrollbar-thumb:hover{
+  background:var(--muted)!important;
+}
 @media(min-width:1220px){
   body{background:#e8edf0;align-items:center;justify-content:center}
   .app-container{border-radius:16px;height:calc(100vh - 32px);margin:16px auto}

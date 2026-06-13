@@ -435,6 +435,23 @@ td.suit-nt{color:var(--muted)}
 @supports (height:100dvh){
   @media(min-width:1220px){.app-container{height:calc(100dvh - 32px)}}
 }
+/* PWA standalone mode — ensure app always fills the actual screen dimensions */
+@media(display-mode:standalone){
+  html,body{width:100vw;height:100vh;overflow:hidden}
+  .app-container{width:100vw;max-width:1200px;height:100vh;margin:0 auto;border-radius:0}
+}
+@media(display-mode:standalone) and (min-width:1220px){
+  .app-container{border-radius:16px;height:calc(100vh - 32px);margin:16px auto}
+}
+@supports (width:100dvw){
+  @media(display-mode:standalone){
+    html,body{width:100dvw;height:100dvh}
+    .app-container{width:min(100dvw,1200px);height:100dvh}
+  }
+  @media(display-mode:standalone) and (min-width:1220px){
+    .app-container{height:calc(100dvh - 32px)}
+  }
+}
 
 /* Suit colours — Clubs/Spades lighter in dark mode for visibility */
 [data-theme="dark"] td.suit-blue{color:#7ec8f0!important;font-weight:700}
